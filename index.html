@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Analyseur PMU</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="style.css?v=1.8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <main>
+        <div id="tab-selection" class="tab-content">
+            <div class="card">
+                <h2>Sélection de la Course</h2>
+                <div class="date-loader-container">
+                    <input type="date" id="dateInput" required>
+                    <button id="loadProgramButton" type="button"><i class="fas fa-search"></i></button>
+                    
+                    <label class="toggle-switch analysis-toggle" title="Calculer les influences de la journée">
+                        <input type="checkbox" id="toggleDailyAnalysis">
+                        <span class="slider">
+                           <i class="fas fa-bolt"></i>
+                           <i class="fas fa-brain"></i>
+                        </span>
+                    </label>
+                    
+                    <label class="toggle-switch theme-toggle">
+                        <input type="checkbox" id="theme-toggle-checkbox">
+                        <span class="slider">
+                            <i class="fas fa-sun"></i>
+                            <i class="fas fa-moon"></i>
+                        </span>
+                    </label>
+                </div>
+            </div>
+            <div class="card" id="selectionContainer" style="display:none;">
+                <div class="form-group">
+                    <select id="reunionSelect" disabled required><option value="" disabled selected>Réunion</option></select>
+                </div>
+                <div class="form-group">
+                    <select id="courseSelect" disabled required><option value="" disabled selected>Course</option></select>
+                </div>
+                <div id="reunionInfoDiv" class="info-box" style="display:none;"></div>
+                <div id="courseInfoDiv" class="info-box" style="display:none;"></div>
+                <div id="nonPartantsInfoDiv" class="info-box" style="display:none;"></div>
+            </div>
+        </div>
+        
+        <div id="tab-stats" class="tab-content">
+            <div class="card">
+                <h2>Analyse des Partants</h2>
+                <p id="stats-placeholder" class="placeholder-text">Sélectionnez une course pour explorer les données.</p>
+                
+                <div id="stats-container" style="display:none;">
+                    
+                    <div class="stats-actions">
+                        <div class="form-group">
+                            <label for="sort-toggle-btn">Ordre</label>
+                            <button id="sort-toggle-btn" type="button">N°</button>
+                        </div>
+                        <div class="form-group">
+                            <label for="rank-toggle-btn">Vue</label>
+                            <label class="toggle-switch button-like-toggle">
+                                <input type="checkbox" id="rank-toggle-btn">
+                                <span class="slider" data-on="Rg" data-off="Val"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="criteria-profile-btn">Profil</label>
+                            <button id="criteria-profile-btn" type="button">Défaut</button>
+                        </div>
+                        <div class="form-group">
+                            <label for="send-selection-to-filters-btn">Export</label>
+                            <button id="send-selection-to-filters-btn" type="button" style="visibility: hidden;">
+                                <i class="fas fa-filter"></i>&nbsp;<span>0</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="criteria-scroller-wrapper">
+                        <div id="criteria-selector-container"></div>
+                    </div>
+
+                    <div id="stats-explorer-grid"></div>
+
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-filters" class="tab-content">
+    <div class="card">
+        <h2>Mes Filtres</h2>
+        <p class="placeholder-text" id="filters-placeholder">Sélectionnez une course pour activer les filtres.</p>
+        <div id="filters-content" style="display:none;">
+            
+            <div class="filters-header">
+    <!-- Chaque élément est maintenant dans son propre form-group pour un style cohérent -->
+    <div class="form-group">
+        <select id="nbCombinaison">
+            <option value="2">Couplé</option>
+            <option value="3" selected>Tiercé</option>
+            <option value="4">Quarté</option>
+            <option value="5">Quinté</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <select id="fonction">
+            <option value="">Ajouter un filtre...</option>
+            <optgroup label="Filtres numériques">
+                <option value="VECT">VECT (Numéros)</option>
+                <option value="SOM">SOM (Somme)</option>
+                <option value="GAP">GAP (Écarts)</option>
+            </optgroup>
+            <optgroup label="Filtres logiques">
+                <option value="COMB">COMB (Compter Valeur)</option>
+                <option value="KTG">KTG (Groupes)</option>
+                <option value="ORDER">ORDER (Trier %)</option>
+            </optgroup>
+        </select>
+    </div>
+    <div class="form-group">
+        <input type="number" id="limitInput" value="200" min="10" max="50000" title="Limite de combinaisons">
+    </div>
+    <span id="active-filter-count" class="filter-counter"></span>
+</div>
+
+            <div id="functions-list"></div>
+
+        </div>
+    </div>
+<!-- ET PLACÉ DANS CE NOUVEAU PIED DE PAGE FIXE -->
+            <div id="filters-action-footer">
+                <span id="filters-status-message"></span>
+                <button id="generer" style="background-color: var(--success-color);" disabled type="button">
+                    <i class="fas fa-rocket"></i> Lancer la Simplification
+                </button>
+            </div>
+</div>
+
+        <div id="tab-results" class="tab-content">
+            <div class="card">
+                <h2>Mes Tickets</h2>
+                <p class="placeholder-text" id="results-placeholder">Aucune combinaison trouvée. Veuillez ajuster vos filtres.</p>
+                
+                <div id="results-content" style="display:none;">
+                    <strong id="results-header"></strong>
+                    <p id="results-warning" class="info-box non-partant" style="display:none;"></p>
+                    
+                    <div class="results-options">
+                        <label>
+                            <input type="checkbox" id="champReduitToggle">
+                            <span>Vue Champ Réduit</span>
+                        </label>
+                    </div>
+
+                    <div id="results-display-area" class="results-display-area grid-view">
+                        <!-- Les combinaisons seront injectées ici par le JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-strategie" class="tab-content">
+            <div class="card">
+                <h2>Ma Stratégie</h2>
+                <p class="placeholder-text" id="strategie-placeholder">Sélectionnez une course pour définir une stratégie.</p>
+                <div id="strategie-content" style="display:none;">
+                    <div id="strategie-race-summary" class="info-box"></div>
+                    
+                    <div class="form-group">
+                        <label for="strategie-notes">Mes Notes</label>
+                        <textarea id="strategie-notes" rows="6" placeholder="Vos analyses, chevaux à suivre, etc."></textarea>
+                    </div>
+
+                    <div id="filter-set-manager">
+                        <!-- Le gestionnaire de filtres sera injecté ici par JS -->
+                    </div>
+
+                    <div class="strategie-actions">
+                        <input type="file" id="import-strategie-input" accept=".json" style="display:none;">
+                        <button type="button" id="import-strategie-btn"><i class="fas fa-upload"></i> Importer</button>
+                        <button type="button" id="export-strategie-btn"><i class="fas fa-download"></i> Exporter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div id="status">Veuillez sélectionner une date.</div>
+
+    <nav class="bottom-nav">
+        <button class="nav-btn active" data-tab="selection" type="button"><i class="fas fa-calendar-alt"></i><span>Course</span></button>
+        <button class="nav-btn" data-tab="stats" type="button"><i class="fas fa-chart-pie"></i><span>Analyse</span></button>
+        <button class="nav-btn" data-tab="filters" type="button"><i class="fas fa-filter"></i><span>Filtres</span></button>
+        <button class="nav-btn" data-tab="strategie" type="button"><i class="fas fa-clipboard-list"></i><span>Stratégie</span></button>
+        <button class="nav-btn" data-tab="results" type="button"><i class="fas fa-list-ol"></i><span>Tickets</span></button>
+    </nav>
+
+    <div id="filter-action-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>Créer un filtre</h3>
+            <p id="modal-info-text"></p>
+            <div class="modal-actions">
+                <button id="modal-create-vect-btn" type="button">Filtre VECT</button>
+                <button id="modal-create-order-btn" type="button">Filtre ORDER</button>
+            </div>
+            <button id="modal-cancel-btn" class="btn-secondary" type="button">Annuler</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+
+    <div id="criteria-profile-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>Gérer les Profils de Critères</h3>
+            
+            <div class="profile-manager-form">
+                <div class="form-group">
+                    <label for="profile-select">Profil Actif</label>
+                    <select id="profile-select"></select>
+                </div>
+                <div class="form-group">
+                    <label for="profile-name-input">Nom du Profil</label>
+                    <input type="text" id="profile-name-input" placeholder="Ex: Plat, Attelé...">
+                </div>
+            </div>
+
+            <div id="criteria-profile-list" class="criteria-list-container">
+                <!-- La liste des critères sera injectée ici par JS -->
+            </div>
+
+            <div class="modal-actions profile-actions">
+                <button id="modal-apply-profile-btn" class="btn-secondary" type="button"><i class="fas fa-check"></i> Appliquer</button>
+                <button id="modal-save-profile-btn" type="button"><i class="fas fa-save"></i> Sauvegarder</button>
+                <button id="modal-delete-profile-btn" class="btn-danger" type="button"><i class="fas fa-trash"></i> Supprimer</button>
+            </div>
+             <button id="modal-cancel-profile-btn" class="btn-secondary" type="button">Annuler</button>
+        </div>
+    </div>
+</body>
+</html>
