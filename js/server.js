@@ -7,7 +7,7 @@ const path = require('path'); // N'oubliez pas d'importer le module 'path'
 
 // Initialisation de l'application Express
 const app = express();
-const PORT = 3001; // On choisit un port différent de celui du front-end
+const PORT = process.env.PORT || 3001; // Utilise le port de Render, ou 3001 par défaut
 
 // Middleware CORS pour autoriser les requêtes depuis votre front-end
 app.use(cors());
