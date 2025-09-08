@@ -10,8 +10,8 @@ function formatDate(date) {
 
 // Fonction générique qui utilise notre propre backend
 async function fetchWithProxy(targetUrl) {
-    // NOUVEAU : On contacte notre propre backend sur le port 3001
-    const proxyUrl = `http://localhost:3001/proxy?url=${encodeURIComponent(targetUrl)}`;
+    // On contacte notre backend déployé sur Render
+    const proxyUrl = `https://pmu-analyseur.onrender.com/proxy?url=${encodeURIComponent(targetUrl)}`;
     
     const response = await fetch(proxyUrl);
     
