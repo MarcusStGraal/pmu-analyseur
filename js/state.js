@@ -134,7 +134,7 @@ class StateManager {
                 criteriaKeys: ['cote', 'dernierePerfNorm', 'ecartDistance', 'nbPlaces_3d', 'meilleurePerfAbsolue_5d', 'poids', 'valeur', 'age', 'sexe', 'gainsCarriere', 'ecartJours', 'reussiteHippo', 'reussiteDistance']
             }];
         }
-        this.setState({ criteriaProfiles: profiles, activeCriteriaProfileId: this._state.activeCriteriaProfileId || profiles[0].id });
+        this.setState({ criteriaProfiles: profiles });
     }
     _saveCriteriaProfiles() {
         localStorage.setItem('pmuCriteriaProfiles', JSON.stringify(this._state.criteriaProfiles));

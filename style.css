@@ -280,14 +280,9 @@ body[data-theme="dark"] .filters-header select {
 
 .stats-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr auto;
     gap: 10px;
     margin-bottom: 15px;
-}
-@media (min-width: 480px) {
-    .stats-actions {
-        grid-template-columns: repeat(4, 1fr);
-    }
 }
 .stats-actions .form-group {
     margin-bottom: 0;

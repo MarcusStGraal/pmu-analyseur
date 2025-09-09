@@ -182,8 +182,8 @@ export function createGrilleFromParticipants(participantsJson, performancesJson,
             const nbCourses = p.nombreCourses || 0;
             grille.gainsParCourse.push(nbCourses > 0 ? Math.round(gains / nbCourses) : null);
             
-            grille.unite.push(p.numPmu <= 9 ? 'Unité' : 'Dizaine');
-            grille.parite.push(p.numPmu % 2 === 0 ? 'Pair' : 'Impair');
+            grille.unite.push(p.numPmu <= 9 ? 1 : 0);
+            grille.parite.push(p.numPmu % 2 === 0 ? 0 : 1);
 
             if (p.ordreArrivee > 0) {
                 grille.arrivalRanks[p.numPmu] = p.ordreArrivee;

@@ -133,7 +133,6 @@ function connectEventListeners() {
         const currentSort = stateManager.getState().ui.stats.sortState.by;
         stateManager.updateStatsUI({ sortState: { by: currentSort === 'num' ? 'data' : 'num' } });
     });
-    addListener('rank-toggle-btn', 'change', e => stateManager.updateStatsUI({ displayMode: e.target.checked ? 'rank' : 'value' }));
     const scrollerContainer = document.getElementById('criteria-selector-container');
     if (scrollerContainer) {
         addListener('scroll-start-btn', 'click', () => scrollerContainer.scrollTo({ left: 0, behavior: 'smooth' }));

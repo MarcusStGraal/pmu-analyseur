@@ -73,8 +73,8 @@ export const EXPLORER_CRITERIA = [
     { key: 'coursesApresAbsence', label: 'Crs Rentrée', unit: '', format: 'integer', defaultAsc: false, rankable: true },
     { key: 'chevauxBattus3d', label: 'Adv. Battus', unit: '', format: 'integer', defaultAsc: false, rankable: true },
     { key: 'chevauxBattus3dPct', label: 'Adv. Battus %', unit: '%', format: 'percent', defaultAsc: false, rankable: true },
-    { key: 'unite', label: 'Unité', unit: '', format: 'string', defaultAsc: true },
-    { key: 'parite', label: 'Parité', unit: '', format: 'string', defaultAsc: true },
+    { key: 'unite', label: 'Unité', unit: '', format: 'boolean', defaultAsc: true },
+    { key: 'parite', label: 'Parité', unit: '', format: 'boolean', defaultAsc: true },
     { key: 'ecartDistance', label: 'Δ Dist. Perso', unit: '', format: 'integer', defaultAsc: true, rankable: true },
     { key: 'formeMontante', label: 'Forme Mont.', unit: '', format: 'boolean', defaultAsc: false, rankable: true },    
     { key: 'nbPlaces_3d', label: 'Podiums (3d)', unit: '', format: 'integer', defaultAsc: false, rankable: true },
@@ -553,16 +553,18 @@ function formatDisplayValue(rawValue, criterion, allParticipants, isRank = false
     if (rawValue === null || rawValue === undefined) {
         return 'N/A';
     }
-    if (criterion.normalize) {
-        const allValues = allParticipants.map(p => p[criterion.key]).filter(v => v !== null && typeof v === 'number');
-        if (shouldNormalize(allValues, criterion)) {
-            const maxVal = Math.max(...allValues);
-            if (maxVal > 0) {
-                const percentage = (rawValue / maxVal) * 100;
-                return `${percentage.toFixed(0)}%`;
-            }
+
+    const gainKeys = ['gainsCarriere', 'gainsAnneeEnCours', 'gainsAnneePrecedente', 'gainsParCourse', 'sum_allocations_3d'];
+    if (gainKeys.includes(criterion.key)) {
+        const allValues = allParticipants.map(p => p[criterion.key]).filter(v => typeof v === 'number' && v !== null);
+        const maxVal = Math.max(...allValues);
+        if (maxVal > 0) {
+            const percentage = (rawValue / maxVal) * 100;
+            return `${percentage.toFixed(0)}%`;
         }
+        return '0%';
     }
+
     switch(criterion.format) {
         case 'currency': return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(rawValue);
         case 'percent': return `${rawValue.toFixed(0)}${criterion.unit || ''}`;
