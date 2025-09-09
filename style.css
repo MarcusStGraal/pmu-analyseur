@@ -394,10 +394,11 @@ body[data-theme="dark"] .filters-header select {
 .criteria-chip.dragging { opacity: 0.5; }
 
 #stats-explorer-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 10px; transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 10px;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
-@media (min-width: 600px) { #stats-explorer-grid { grid-template-columns: repeat(6, 1fr); } }
 
 .stat-card {
     display: flex; flex-direction: column; align-items: center; justify-content: center;

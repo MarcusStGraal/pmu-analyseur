@@ -178,7 +178,8 @@ export function createGrilleFromParticipants(participantsJson, performancesJson,
             grille.influenceEntraineur.push(safeInfluenceScores.entraineur[p.entraineur] || 0);
             grille.influencePere.push(safeInfluenceScores.pere[p.nomPere] || 0);
             
-            const gains = p.gainsParticipant?.gainsCarriere || 0;            const nbCourses = p.musique?.match(/[0-9DA-Z]/g)?.length || 0;
+            const gains = p.gainsParticipant?.gainsCarriere || 0;
+            const nbCourses = p.nombreCourses || 0;
             grille.gainsParCourse.push(nbCourses > 0 ? Math.round(gains / nbCourses) : null);
             
             grille.unite.push(p.numPmu <= 9 ? 'Unité' : 'Dizaine');
