@@ -388,11 +388,17 @@ export function renderStatsExplorer(grille, activeProfile, criteriaKey, sortStat
     }
 
     const influenceKeys = ['influenceJockey', 'influenceEntraineur', 'influencePere'];
-    const visibleCriteria = EXPLORER_CRITERIA.filter(c =>
-        activeProfile.criteriaKeys.includes(c.key) &&
-        (!c.disciplines || c.disciplines.includes(grille.discipline)) &&
-        (isDailyAnalysisEnabled || !influenceKeys.includes(c.key))
-    );
+    
+    // On mappe les clés du profil pour obtenir les objets critères complets, dans le bon ordre.
+    const visibleCriteria = activeProfile.criteriaKeys.map(key => {
+        return EXPLORER_CRITERIA.find(c => c.key === key);
+    }).filter(criterion => {
+        // On filtre ensuite pour s'assurer que le critère est valide et applicable.
+        if (!criterion) return false;
+        if (criterion.disciplines && !criterion.disciplines.includes(grille.discipline)) return false;
+        if (!isDailyAnalysisEnabled && influenceKeys.includes(criterion.key)) return false;
+        return true;
+    });
 
     populateCriteriaSelector(criteriaKey, visibleCriteria);
 

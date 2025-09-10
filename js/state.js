@@ -143,7 +143,7 @@ class StateManager {
     _saveCriteriaProfiles() {
         localStorage.setItem('pmuCriteriaProfiles', JSON.stringify(this._state.criteriaProfiles));
     }
-    openCriteriaModal() {
+     openCriteriaModal() {
         const activeProfile = this._state.criteriaProfiles.find(p => p.id === this._state.activeCriteriaProfileId) || this._state.criteriaProfiles[0];
         this.setState({
             ui: {
@@ -152,7 +152,7 @@ class StateManager {
                 criteriaModal: {
                     selectedProfileId: activeProfile.id,
                     currentName: activeProfile.name,
-                    selectedKeys: new Set(activeProfile.criteriaKeys)
+                    selectedKeys: Array.from(activeProfile.criteriaKeys) // On utilise un Array
                 }
             }
         });
@@ -182,13 +182,15 @@ class StateManager {
         const profiles = [...this._state.criteriaProfiles];
         const existingProfile = profiles.find(p => p.id === selectedProfileId);
         if (existingProfile && !existingProfile.isDefault) {
+            // Mise à jour
             existingProfile.name = currentName;
-            existingProfile.criteriaKeys = Array.from(selectedKeys);
+            existingProfile.criteriaKeys = selectedKeys; // C'est déjà un Array
         } else {
+            // Création
             const newProfile = {
                 id: Date.now().toString(),
                 name: currentName,
-                criteriaKeys: Array.from(selectedKeys)
+                criteriaKeys: selectedKeys // C'est déjà un Array
             };
             profiles.push(newProfile);
             this.updateCriteriaModal({ selectedProfileId: newProfile.id });

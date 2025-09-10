@@ -220,10 +220,10 @@ function connectEventListeners() {
         criteriaModal.addEventListener('change', e => {
             if (e.target.id === 'profile-select') stateManager.selectProfileInModal(e.target.value);
             if (e.target.closest('#criteria-profile-list') && e.target.type === 'checkbox') {
-                const key = e.target.dataset.criteriaKey;
-                const currentKeys = new Set(stateManager.getState().ui.criteriaModal.selectedKeys);
-                if (e.target.checked) currentKeys.add(key); else currentKeys.delete(key);
-                stateManager.updateCriteriaModal({ selectedKeys: currentKeys });
+                const newSelectedKeys = Array.from(
+                    criteriaModal.querySelectorAll('#criteria-profile-list input[type="checkbox"]:checked')
+                ).map(checkbox => checkbox.dataset.criteriaKey);
+                stateManager.updateCriteriaModal({ selectedKeys: newSelectedKeys });
             }
         });
         criteriaModal.addEventListener('input', e => {
