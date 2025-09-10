@@ -429,23 +429,15 @@ body[data-theme="dark"] .stat-card-data:hover { background-color: rgba(255, 255,
     background: linear-gradient(145deg, #ffd700, #f0c000);
     border-color: #DAA520;
 }
-#stats-explorer-grid .stat-card.winner-1 .stat-card-num, 
-#stats-explorer-grid .stat-card.winner-1 .stat-card-data {
-    color: #333;
-}
 #stats-explorer-grid .stat-card.winner-2 {
     background: linear-gradient(145deg, #e0e0e0, #b0b0b0);
     border-color: #a9a9a9;
-}
-#stats-explorer-grid .stat-card.winner-2 .stat-card-num, 
-#stats-explorer-grid .stat-card.winner-2 .stat-card-data {
-    color: #333;
 }
 #stats-explorer-grid .stat-card.winner-3 {
     background: linear-gradient(145deg, #cd7f32, #b8732e);
     border-color: #8B4513;
 }
-#stats-explorer-grid .stat-card.winner-3 .stat-card-num, 
+#stats-explorer-grid .stat-card.winner-3 .stat-card-num,
 #stats-explorer-grid .stat-card.winner-3 .stat-card-data {
     color: white;
 }
@@ -453,7 +445,7 @@ body[data-theme="dark"] .stat-card-data:hover { background-color: rgba(255, 255,
     background: linear-gradient(145deg, #5bc0de, #46b8da);
     border-color: #31b0d5;
 }
-#stats-explorer-grid .stat-card.winner-4 .stat-card-num, 
+#stats-explorer-grid .stat-card.winner-4 .stat-card-num,
 #stats-explorer-grid .stat-card.winner-4 .stat-card-data {
     color: white;
 }
@@ -461,7 +453,7 @@ body[data-theme="dark"] .stat-card-data:hover { background-color: rgba(255, 255,
     background: linear-gradient(145deg, #5cb85c, #4caf50);
     border-color: #388e3c;
 }
-#stats-explorer-grid .stat-card.winner-5 .stat-card-num, 
+#stats-explorer-grid .stat-card.winner-5 .stat-card-num,
 #stats-explorer-grid .stat-card.winner-5 .stat-card-data {
     color: white;
 }

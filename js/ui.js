@@ -701,29 +701,29 @@ function buildListViewHTML(combinations, betSize, isAlreadyFactored = false) {
 }
 
 export function renderCriteriaProfileModal(profiles, modalState, discipline) {
-    if (!DOM.profileSelect || !DOM.criteriaProfileList || !DOM.profileNameInput) return;
-    DOM.profileSelect.innerHTML = profiles.map(p => 
-        `<option value="${p.id}" ${p.id === modalState.selectedProfileId ? 'selected' : ''}>${escapeHTML(p.name)}</option>`
-    ).join('');
+if (!DOM.profileSelect || !DOM.criteriaProfileList || !DOM.profileNameInput) return;
+DOM.profileSelect.innerHTML = profiles.map(p =>
+<option value="${p.id}" ${p.id === modalState.selectedProfileId ? 'selected' : ''}>${escapeHTML(p.name)}</option>
+).join('');
 
-    DOM.profileNameInput.value = modalState.currentName;
+DOM.profileNameInput.value = modalState.currentName;
 
-    const availableCriteria = discipline
-        ? EXPLORER_CRITERIA.filter(c => !c.disciplines || c.disciplines.includes(discipline))
-        : EXPLORER_CRITERIA;
+const availableCriteria = discipline
+    ? EXPLORER_CRITERIA.filter(c => !c.disciplines || c.disciplines.includes(discipline))
+    : EXPLORER_CRITERIA;
 
-    DOM.criteriaProfileList.innerHTML = availableCriteria.map(c => `
-        <label title="${escapeHTML(c.label)}">
-            <input type="checkbox" data-criteria-key="${c.key}" ${modalState.selectedKeys.has(c.key) ? 'checked' : ''}>
-            <span>${escapeHTML(c.label)}</span>
-        </label>
-    `).join('');
+DOM.criteriaProfileList.innerHTML = availableCriteria.map(c => `
+    <label title="${escapeHTML(c.label)}">
+        <input type="checkbox" data-criteria-key="${c.key}" ${modalState.selectedKeys.includes(c.key) ? 'checked' : ''}>
+        <span>${escapeHTML(c.label)}</span>
+    </label>
+`).join('');
 
-    const deleteBtn = document.getElementById('modal-delete-profile-btn');
-    const selectedProfile = profiles.find(p => p.id === modalState.selectedProfileId);
-    if (deleteBtn) {
-        deleteBtn.disabled = !selectedProfile || selectedProfile.isDefault;
-    }
+const deleteBtn = document.getElementById('modal-delete-profile-btn');
+const selectedProfile = profiles.find(p => p.id === modalState.selectedProfileId);
+if (deleteBtn) {
+    deleteBtn.disabled = !selectedProfile || selectedProfile.isDefault;
+}
 }
 
 function renderStrategieTab(state) {
