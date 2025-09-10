@@ -169,7 +169,7 @@ class StateManager {
             this.updateCriteriaModal({
                 selectedProfileId: profileId,
                 currentName: selectedProfile.name,
-                selectedKeys: new Set(selectedProfile.criteriaKeys)
+                selectedKeys: Array.from(selectedProfile.criteriaKeys)
             });
         }
     }
