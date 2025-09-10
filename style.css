@@ -449,13 +449,18 @@ body[data-theme="dark"] .stat-card-data:hover { background-color: rgba(255, 255,
 #stats-explorer-grid .stat-card.winner-3 .stat-card-data {
     color: white;
 }
-#stats-explorer-grid .stat-card.winner-4, 
+#stats-explorer-grid .stat-card.winner-4 {
+    background: linear-gradient(145deg, #5bc0de, #46b8da);
+    border-color: #31b0d5;
+}
+#stats-explorer-grid .stat-card.winner-4 .stat-card-num, 
+#stats-explorer-grid .stat-card.winner-4 .stat-card-data {
+    color: white;
+}
 #stats-explorer-grid .stat-card.winner-5 {
     background: linear-gradient(145deg, #5cb85c, #4caf50);
     border-color: #388e3c;
 }
-#stats-explorer-grid .stat-card.winner-4 .stat-card-num, 
-#stats-explorer-grid .stat-card.winner-4 .stat-card-data,
 #stats-explorer-grid .stat-card.winner-5 .stat-card-num, 
 #stats-explorer-grid .stat-card.winner-5 .stat-card-data {
     color: white;

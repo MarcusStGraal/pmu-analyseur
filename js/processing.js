@@ -53,29 +53,23 @@ function analyzeMusique(musiqueString, discipline) {
         return { nbCoursesAnnee: 0, dernierePerfNorm: null, evolPerf: null, moyennePerfAnnee: null, indiceForme: 10 };
     }
 
-    const currentYearAbbr = String(new Date().getFullYear()).slice(-2);
-    let anneeMatch = musiqueString.match(new RegExp(`\\((${currentYearAbbr})\\)`));
-    
-    let musiqueAnneeEnCours = musiqueString;
-    if (anneeMatch) {
-        musiqueAnneeEnCours = musiqueString.split(anneeMatch[0])[0];
-    } else {
-        if (musiqueString.includes('(')) {
-            musiqueAnneeEnCours = '';
-        }
+    // On prend tout ce qui est avant la première parenthèse pour avoir les perfs les plus récentes.
+    let musiqueAParser = musiqueString;
+    const firstParenIndex = musiqueString.indexOf('(');
+    if (firstParenIndex !== -1) {
+        musiqueAParser = musiqueString.substring(0, firstParenIndex);
     }
-
+    
     const perfs = [];
     const regex = /(\d+|[A-Z])([a-z])?/g;
     let match;
-    while ((match = regex.exec(musiqueAnneeEnCours)) !== null) {
+    while ((match = regex.exec(musiqueAParser)) !== null) {
         perfs.push(match[1]);
     }
 
     const nbCoursesAnnee = perfs.length;
 
     if (nbCoursesAnnee === 0) {
-        // S'il n'y a aucune course cette année, on applique une pénalité à l'indice de forme.
         return { nbCoursesAnnee: 0, dernierePerfNorm: null, evolPerf: null, moyennePerfAnnee: null, indiceForme: 10 };
     }
 
