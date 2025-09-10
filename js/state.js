@@ -124,7 +124,11 @@ class StateManager {
         const savedProfilesJSON = localStorage.getItem('pmuCriteriaProfiles');
         let profiles = [];
         if (savedProfilesJSON) {
-            profiles = JSON.parse(savedProfilesJSON);
+            try {
+                profiles = JSON.parse(savedProfilesJSON);
+            } catch (e) {
+                console.error("Erreur lors du parsing des profils, réinitialisation.", e);
+            }
         }
         if (profiles.length === 0) {
             profiles = [{
@@ -241,11 +245,16 @@ class StateManager {
         const savedStateJSON = localStorage.getItem('pmuAppState');
         let stateToLoad = null;
         let dateToLoad = new Date();
+        let finalProfileId = this.getState().criteriaProfiles[0]?.id || null;
         if (savedStateJSON) {
             const savedState = JSON.parse(savedStateJSON);
             stateToLoad = savedState;
             if (savedState.date) {
                 dateToLoad = new Date(savedState.date + 'T00:00:00');
+            }
+            const savedProfileId = savedState.activeCriteriaProfileId;
+            if (this.getState().criteriaProfiles.some(p => p.id === savedProfileId)) {
+                finalProfileId = savedProfileId;
             }
             this.setState({
                 filters: savedState.filters || [],
@@ -254,12 +263,12 @@ class StateManager {
                     betType: savedState.betType || 3,
                     showChampReduit: savedState.showChampReduit || false
                 },
-                activeCriteriaProfileId: savedState.activeCriteriaProfileId || this._state.criteriaProfiles[0]?.id,
                 isDailyAnalysisEnabled: savedState.isDailyAnalysisEnabled === true
             });
-            const checkbox = document.getElementById('toggleDailyAnalysis');
-            if (checkbox) checkbox.checked = this._state.isDailyAnalysisEnabled;
         }
+        this.setState({ activeCriteriaProfileId: finalProfileId });
+        const checkbox = document.getElementById('toggleDailyAnalysis');
+        if (checkbox) checkbox.checked = this._state.isDailyAnalysisEnabled;
         const dateStr = dateToLoad.toISOString().split('T')[0];
         document.getElementById('dateInput').value = dateStr;
         await this.changeDate(dateStr, stateToLoad);

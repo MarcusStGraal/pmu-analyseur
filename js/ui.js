@@ -83,7 +83,7 @@ export const EXPLORER_CRITERIA = [
     { key: 'dernierePerfNorm', label: 'Dern. Perf.', unit: '', format: 'integer', defaultAsc: true, rankable: true }, 
     { key: 'evolPerf', label: 'Évol. Perf.', unit: '', format: 'integer', defaultAsc: false, rankable: true }, 
     { key: 'moyennePerfAnnee', label: 'Moy. Perf.', unit: '', format: 'float', defaultAsc: true, rankable: true }, 
-    { key: 'nbCoursesAnnee', label: 'Nb Courses', unit: '', format: 'integer', defaultAsc: false, rankable: true }, 
+    { key: 'nbCoursesCarriere', label: 'Nb Courses', unit: '', format: 'integer', defaultAsc: false, rankable: true }, 
     { key: 'influenceJockey', label: 'Infl. Jockey', unit: '', format: 'integer', defaultAsc: false, rankable: true }, 
     { key: 'influenceEntraineur', label: 'Infl. Entraîn.', unit: '', format: 'integer', defaultAsc: false, rankable: true }, 
     { key: 'influencePere', label: 'Infl. Père', unit: '', format: 'integer', defaultAsc: false, rankable: true }, 
@@ -93,13 +93,15 @@ export const EXPLORER_CRITERIA = [
     { key: 'sexe', label: 'Sexe', unit: '', format: 'string', defaultAsc: true },
     { key: 'corde', label: 'Corde', unit: '', format: 'integer', defaultAsc: true, rankable: true }, 
     { key: 'def', label: 'Déferré', unit: '', format: 'integer', defaultAsc: false, rankable: true }, 
-    { key: 'gainsCarriere', label: 'Gains Carr.', unit: '€', format: 'currency', defaultAsc: false, normalize: true, rankable: true }, 
-    { key: 'gainsAnneeEnCours', label: 'Gains 2025', unit: '€', format: 'currency', defaultAsc: false, normalize: true, rankable: true }, 
-    { key: 'gainsAnneePrecedente', label: 'Gains 2024', unit: '€', format: 'currency', defaultAsc: false, normalize: true, rankable: true }, 
+    { key: 'gainsCarriere', label: 'Gains Carr.', unit: '€', format: 'currency', defaultAsc: false, rankable: true }, 
+    { key: 'gainsAnneeEnCours', label: 'Gains 2025', unit: '€', format: 'currency', defaultAsc: false, rankable: true }, 
+    { key: 'gainsAnneePrecedente', label: 'Gains 2024', unit: '€', format: 'currency', defaultAsc: false, rankable: true }, 
+    { key: 'gainsVictoires', label: 'Gains Victoires', unit: '€', format: 'currency', defaultAsc: false, rankable: true },
+    { key: 'gainsPlace', label: 'Gains Places', unit: '€', format: 'currency', defaultAsc: false, rankable: true },
     { key: 'ecartJours', label: 'Fraîcheur', unit: 'j', format: 'integer', defaultAsc: true, rankable: true }, 
     { key: 'dernierMemeHippo', label: 'Dern. Même Hippo', unit: '', format: 'boolean' }, 
     { key: 'dernierNbPartants', label: 'Dern. Nb Partants', unit: '', format: 'integer', defaultAsc: false, rankable: true }, 
-    { key: 'sum_allocations_3d', label: 'Alloc. 3D', unit: '€', format: 'currency', defaultAsc: false, normalize: true, rankable: true }, 
+    { key: 'sum_allocations_3d', label: 'Alloc. 3D', unit: '€', format: 'currency', defaultAsc: false, rankable: true }, 
     { key: 'ecartPoids', label: 'Δ Poids', unit: 'kg', format: 'integer', defaultAsc: true, rankable: true, disciplines: ['PLAT', 'OBSTACLE', 'TROT_MONTE'] }, 
     { key: 'driverChange', label: 'Chg. Driver', unit: '', format: 'boolean' }, 
     { key: 'reussiteHippo', label: 'Tx Hippo', unit: '%', format: 'percent', defaultAsc: false, rankable: true }, 
@@ -114,11 +116,11 @@ export const EXPLORER_CRITERIA = [
 ];
 
 const FILTER_FUNCTION_COLUMNS = [
-    { value: 'num', label: 'N°' }, { value: 'age', label: 'Age' }, { value: 'sexe', label: 'Sexe' }, { value: 'poids', label: 'Poids' }, { value: 'corde', label: 'Corde' }, { value: 'valeur', label: 'Val.Hand.' }, { value: 'cote', label: 'Cotes' }, { value: 'gainsCarriere', label: 'Gains' }, { value: 'def', label: 'Déferré' }, { value: 'dernierePerfNorm', label: 'Dern. Perf' }, { value: 'evolPerf', label: 'Évol. Perf' }, { value: 'moyennePerfAnnee', label: 'Moy. Perf' }, { value: 'nbCoursesAnnee', label: 'Nb Courses' }, { value: 'dernierReducKm', label: 'Dern. Réduc. Km' }, { value: 'dernierMemeHippo', label: 'Dern. Même Hippo' }, { value: 'dernierNbPartants', label: 'Dern. Nb Partants' }, { value: 'influenceJockey', label: 'Infl. Jockey' }, { value: 'influenceEntraineur', label: 'Infl. Entraîn.' }, { value: 'influencePere', label: 'Infl. Père' },
+    { value: 'num', label: 'N°' }, { value: 'age', label: 'Age' }, { value: 'sexe', label: 'Sexe' }, { value: 'poids', label: 'Poids' }, { value: 'corde', label: 'Corde' }, { value: 'valeur', label: 'Val.Hand.' }, { value: 'cote', label: 'Cotes' }, { value: 'gainsCarriere', label: 'Gains' }, { value: 'gainsVictoires', label: 'Gains Victoires' }, { value: 'gainsPlace', label: 'Gains Places' }, { value: 'def', label: 'Déferré' }, { value: 'dernierePerfNorm', label: 'Dern. Perf' }, { value: 'evolPerf', label: 'Évol. Perf' }, { value: 'moyennePerfAnnee', label: 'Moy. Perf' }, { value: 'nbCoursesCarriere', label: 'Nb Courses' }, { value: 'dernierReducKm', label: 'Dern. Réduc. Km' }, { value: 'dernierMemeHippo', label: 'Dern. Même Hippo' }, { value: 'dernierNbPartants', label: 'Dern. Nb Partants' }, { value: 'influenceJockey', label: 'Infl. Jockey' }, { value: 'influenceEntraineur', label: 'Infl. Entraîn.' }, { value: 'influencePere', label: 'Infl. Père' },
     { value: 'nbPlaces_3d', label: 'Nb Podiums (3d)'}, { value: 'meilleurePerfAbsolue_5d', label: 'Meilleure Perf (5d)' },
     { value: 'rkAdjusted', label: 'RK Ajustée' }, { value: 'nbCoursesHippo', label: 'Nb Hippo' },
     { value: 'rankNbPlaces_3d', label: 'Rg Podiums (3d)'}, { value: 'rankMeilleurePerfAbsolue_5d', label: 'Rg Meilleure Perf (5d)' },
-    { value: 'rankCote', label: 'Rg Cote' }, { value: 'rankGains', label: 'Rg Gains' }, { value: 'rankPoids', label: 'Rg Poids' }, { value: 'rankValeur', label: 'Rg Valeur' }, { value: 'rankEcartJours', label: 'Rg Fraîch.' }, { value: 'rankRkAdjusted', label: 'Rg RK Ajustée' }, { value: 'rankReussiteHippo', label: 'Rg Tx Hippo' }, { value: 'rankReussiteDistance', label: 'Rg Tx Dist.' },
+    { value: 'rankCote', label: 'Rg Cote' }, { value: 'rankGains', label: 'Rg Gains' }, { value: 'rankGainsVictoires', label: 'Rg Gains Vict.' }, { value: 'rankGainsPlace', label: 'Rg Gains Places' }, { value: 'rankPoids', label: 'Rg Poids' }, { value: 'rankValeur', label: 'Rg Valeur' }, { value: 'rankEcartJours', label: 'Rg Fraîch.' }, { value: 'rankRkAdjusted', label: 'Rg RK Ajustée' }, { value: 'rankReussiteHippo', label: 'Rg Tx Hippo' }, { value: 'rankReussiteDistance', label: 'Rg Tx Dist.' },
 ];
 
 let combinationRenderTimeout = null;
@@ -554,7 +556,7 @@ function formatDisplayValue(rawValue, criterion, allParticipants, isRank = false
         return 'N/A';
     }
 
-    const gainKeys = ['gainsCarriere', 'gainsAnneeEnCours', 'gainsAnneePrecedente', 'gainsParCourse', 'sum_allocations_3d'];
+    const gainKeys = ['gainsCarriere', 'gainsAnneeEnCours', 'gainsAnneePrecedente', 'gainsParCourse', 'sum_allocations_3d', 'gainsVictoires', 'gainsPlace'];
     if (gainKeys.includes(criterion.key)) {
         const allValues = allParticipants.map(p => p[criterion.key]).filter(v => typeof v === 'number' && v !== null);
         const maxVal = Math.max(...allValues);

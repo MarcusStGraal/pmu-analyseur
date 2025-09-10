@@ -50,42 +50,55 @@ function normalizePerf(perfChar) {
 
 function analyzeMusique(musiqueString, discipline) {
     if (!musiqueString || typeof musiqueString !== 'string') {
-        return { nbCoursesAnnee: 0, dernierePerfNorm: null, evolPerf: null, moyennePerfAnnee: null, indiceForme: null };
+        return { nbCoursesAnnee: 0, dernierePerfNorm: null, evolPerf: null, moyennePerfAnnee: null, indiceForme: 10 };
     }
 
-    // Isoler la musique pertinente (Galop: 5 derniers mois, Trot: 3 derniers mois)
-    const anneeMatch = musiqueString.match(/\((\d+)\)/);
-    const currentYear = new Date().getFullYear() % 100;
-    let musiqueAParser = musiqueString;
-    if (anneeMatch && parseInt(anneeMatch[1], 10) < currentYear) {
-         musiqueAParser = musiqueString.split(/\(\d+\)/)[0];
-    }
+    const currentYearAbbr = String(new Date().getFullYear()).slice(-2);
+    let anneeMatch = musiqueString.match(new RegExp(`\\((${currentYearAbbr})\\)`));
     
+    let musiqueAnneeEnCours = musiqueString;
+    if (anneeMatch) {
+        musiqueAnneeEnCours = musiqueString.split(anneeMatch[0])[0];
+    } else {
+        if (musiqueString.includes('(')) {
+            musiqueAnneeEnCours = '';
+        }
+    }
+
     const perfs = [];
     const regex = /(\d+|[A-Z])([a-z])?/g;
     let match;
-    while ((match = regex.exec(musiqueAParser)) !== null) {
+    while ((match = regex.exec(musiqueAnneeEnCours)) !== null) {
         perfs.push(match[1]);
     }
-    
+
     const nbCoursesAnnee = perfs.length;
+
     if (nbCoursesAnnee === 0) {
-        return { nbCoursesAnnee: 0, dernierePerfNorm: null, evolPerf: null, moyennePerfAnnee: null, indiceForme: null };
+        // S'il n'y a aucune course cette année, on applique une pénalité à l'indice de forme.
+        return { nbCoursesAnnee: 0, dernierePerfNorm: null, evolPerf: null, moyennePerfAnnee: null, indiceForme: 10 };
     }
+
+    const dernierePerfNorm = normalizePerf(perfs[0]);
+    const evolPerf = perfs.length > 1 ? normalizePerf(perfs[1]) - normalizePerf(perfs[0]) : null;
 
     const normalizedPerfs = perfs.map(p => {
         const place = parseInt(p, 10);
-        if (!isNaN(place)) return Math.min(place, 11);
-        if (['D', 'R'].includes(p)) return 6; // Disqualifié / Rétrogradé
-        if (['A', 'T'].includes(p)) return 11; // Arrêté / Tombé
-        return 11; // Cas non géré
+        if (!isNaN(place)) {
+            if (place === 0) return 9;
+            return Math.min(place, 11);
+        }
+        if (['D', 'R'].includes(p)) return 6;
+        if (['A', 'T'].includes(p)) return 11;
+        return 11;
     });
 
-    const dernierePerfNorm = normalizePerf(perfs[0]);
-    const evolPerf = (nbCoursesAnnee > 1) ? normalizePerf(perfs[1]) - normalizePerf(perfs[0]) : null;
     const sumPerfs = normalizedPerfs.reduce((sum, p) => sum + p, 0);
     const moyennePerfAnnee = parseFloat((sumPerfs / nbCoursesAnnee).toFixed(2));
-    const indiceForme = parseFloat((normalizedPerfs.slice(0, 5).reduce((a, b) => a + b, 0) / Math.min(5, normalizedPerfs.length)).toFixed(2));
+    
+    const perfsPourIndice = normalizedPerfs.slice(0, 5);
+    const sumIndice = perfsPourIndice.reduce((a, b) => a + b, 0);
+    const indiceForme = parseFloat((sumIndice / perfsPourIndice.length).toFixed(2));
 
     return { nbCoursesAnnee, dernierePerfNorm, evolPerf, moyennePerfAnnee, indiceForme };
 }
@@ -123,18 +136,19 @@ export function createGrilleFromParticipants(participantsJson, performancesJson,
         });
     }
 
-    const grille = {
+        const grille = {
         discipline: discipline,
         num: [], nom: [], age: [], sexe: [], poids: [], corde: [], valeur: [], cote: [],
         def: [], musique: [], statut: [], nomPere: [], nomMere: [],
         indiceForme: [], gainsParCourse: [], coursesApresAbsence: [], chevauxBattus3d: [],
         chevauxBattus3dPct: [], unite: [], parite: [],
         gainsCarriere: [], gainsAnneeEnCours: [], gainsAnneePrecedente: [],
+        gainsVictoires: [], gainsPlace: [],
         sum_allocations_3d: [], ecartPoids: [],
         lettre_1: [], lettre_2: [], ecartJours: [],
         driverChange: [], oeilleres: [],
         reussiteHippo: [], reussiteDistance: [],
-        nbCoursesAnnee: [], dernierePerfNorm: [], evolPerf: [], moyennePerfAnnee: [],
+        nbCoursesAnnee: [], nbCoursesCarriere: [], dernierePerfNorm: [], evolPerf: [], moyennePerfAnnee: [],
         influenceJockey: [], influenceEntraineur: [], influencePere: [],
         dernierReducKm: [], recordVitesseHippo: [], rkAdjusted: [],
         recordVitessePlatHippo: [],
@@ -164,13 +178,17 @@ export function createGrilleFromParticipants(participantsJson, performancesJson,
 	    grille.def.push((p.deferre || '').includes('DEFERRE') ? 1 : 0);
             grille.driverChange.push(p.driverChange ? 1 : 0);
             grille.oeilleres.push(p.oeilleres?.code || 'NON');
-            grille.gainsCarriere.push(p.gainsParticipant?.gainsCarriere || 0);            grille.gainsAnneeEnCours.push(p.gainsParticipant?.gainsAnneeEnCours || 0);
+            grille.gainsCarriere.push(p.gainsParticipant?.gainsCarriere || 0);            
+            grille.gainsAnneeEnCours.push(p.gainsParticipant?.gainsAnneeEnCours || 0);
             grille.gainsAnneePrecedente.push(p.gainsParticipant?.gainsAnneePrecedente || 0);
+            grille.gainsVictoires.push(p.gainsParticipant?.gainsVictoires || 0);
+            grille.gainsPlace.push(p.gainsParticipant?.gainsPlace || 0);
             grille.lettre_1.push(p.nom?.charAt(0).toUpperCase() || '');
             grille.lettre_2.push(p.nom?.length > 1 ? p.nom.charAt(1).toUpperCase() : '');
             grille.nomPere.push(p.nomPere || 'N/A');
             grille.nomMere.push(p.nomMere || 'N/A');
             grille.nbCoursesAnnee.push(musiqueAnalysis.nbCoursesAnnee);
+            grille.nbCoursesCarriere.push(p.nombreCourses || 0);
             grille.dernierePerfNorm.push(musiqueAnalysis.dernierePerfNorm);
             grille.evolPerf.push(musiqueAnalysis.evolPerf);
             grille.moyennePerfAnnee.push(musiqueAnalysis.moyennePerfAnnee);
@@ -297,12 +315,13 @@ export function createGrilleFromParticipants(participantsJson, performancesJson,
     const rankableCriteria = [
         { key: 'cote', direction: 'asc' }, { key: 'dernierePerfNorm', direction: 'asc' },
         { key: 'evolPerf', direction: 'desc' }, { key: 'moyennePerfAnnee', direction: 'asc' },
-        { key: 'nbCoursesAnnee', direction: 'desc' }, { key: 'influenceJockey', direction: 'desc' },
+        { key: 'nbCoursesCarriere', direction: 'desc' }, { key: 'influenceJockey', direction: 'desc' },
         { key: 'influenceEntraineur', direction: 'desc' }, { key: 'influencePere', direction: 'desc' },
         { key: 'poids', direction: 'desc' },
         { key: 'valeur', direction: 'desc' }, { key: 'age', direction: 'asc' },
         { key: 'corde', direction: 'asc' }, { key: 'gainsCarriere', direction: 'desc' },
         { key: 'gainsAnneeEnCours', direction: 'desc' }, { key: 'gainsAnneePrecedente', direction: 'desc' },
+        { key: 'gainsVictoires', direction: 'desc' }, { key: 'gainsPlace', direction: 'desc' },
         { key: 'ecartJours', direction: 'asc' }, { key: 'dernierReducKm', direction: 'asc' },
         { key: 'dernierNbPartants', direction: 'desc' },
         { key: 'sum_allocations_3d', direction: 'desc' }, { key: 'ecartPoids', direction: 'asc' }, 
