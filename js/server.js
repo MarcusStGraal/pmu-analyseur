@@ -3,20 +3,13 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
-const path = require('path'); // N'oubliez pas d'importer le module 'path'
 
 // Initialisation de l'application Express
 const app = express();
-const PORT = process.env.PORT || 3001; // Utilise le port de Render, ou 3001 par défaut
+const PORT = process.env.PORT || 3001;
 
 // Middleware CORS pour autoriser les requêtes depuis votre front-end
 app.use(cors());
-
-// --- AJOUT IMPORTANT ---
-// Middleware pour servir les fichiers statiques (HTML, CSS, JS) depuis la racine du projet.
-// __dirname est une variable Node.js qui contient le chemin du répertoire actuel.
-app.use(express.static(path.join(__dirname, '.')));
-// --------------------
 
 // On crée une route unique '/proxy' qui fera tout le travail
 app.get('/proxy', async (req, res) => {
