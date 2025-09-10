@@ -201,7 +201,7 @@ export function createGrilleFromParticipants(participantsJson, performancesJson,
             grille.gainsParCourse.push(nbCourses > 0 ? Math.round(gains / nbCourses) : null);
             
             grille.unite.push(p.numPmu <= 9 ? 1 : 0);
-            grille.parite.push(p.numPmu % 2 === 0 ? 0 : 1);
+            grille.parite.push(p.numPmu % 2 === 0 ? 1 : 0);
 
             if (p.ordreArrivee > 0) {
                 grille.arrivalRanks[p.numPmu] = p.ordreArrivee;
