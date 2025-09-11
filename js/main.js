@@ -1,7 +1,6 @@
 import { stateManager } from './state.js';
 import * as cache from './cache.js';
 import { renderApp, setupNavigation, showFilterActionModal, hideFilterActionModal, getCurrentModalNumbers, getCurrentModalGroupName, EXPLORER_CRITERIA, switchTab } from './ui.js';
-import { debounce } from './utils.js';
 
 function handleCreateFilterFromModal(type) {
     const numbers = getCurrentModalNumbers();
@@ -244,8 +243,7 @@ function connectEventListeners() {
         });
     }
 
-    const debouncedSaveNote = debounce(note => stateManager.saveNoteForCurrentRace(note), 500);
-    addListener('strategie-notes', 'input', e => debouncedSaveNote(e.target.value));
+    addListener('strategie-notes', 'change', e => stateManager.saveNoteForCurrentRace(e.target.value));
     addListener('import-strategie-input', 'change', e => {
         if (e.target.files.length > 0) {
             stateManager.importStrategy(e.target.files[0]);
