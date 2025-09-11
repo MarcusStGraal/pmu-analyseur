@@ -163,19 +163,32 @@ function connectEventListeners() {
     });
     const functionsList = document.getElementById('functions-list');
     if (functionsList) {
-        const debouncedUpdateFilter = debounce((index, field, value) => stateManager.updateFilter(index, field, value), 350);
+        // Pour les changements instantanés (menus déroulants, cases à cocher)
         functionsList.addEventListener('input', e => {
-            const item = e.target.closest('.function-item[data-index]');
+            const target = e.target;
+            if (target.tagName !== 'SELECT' && target.type !== 'checkbox') return;
+
+            const item = target.closest('.function-item[data-index]');
             if (!item) return;
             const index = parseInt(item.dataset.index, 10);
-            const field = e.target.dataset.field;
-            const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-            if (e.target.type === 'checkbox' || e.target.tagName === 'SELECT') {
-                stateManager.updateFilter(index, field, value);
-            } else {
-                debouncedUpdateFilter(index, field, value);
-            }
+            const field = target.dataset.field;
+            const value = target.type === 'checkbox' ? target.checked : target.value;
+            stateManager.updateFilter(index, field, value);
         });
+
+        // Pour les champs de texte et numériques, on attend que l'utilisateur quitte le champ
+        functionsList.addEventListener('change', e => {
+            const target = e.target;
+            if (target.tagName !== 'INPUT' || target.type === 'checkbox') return;
+
+            const item = target.closest('.function-item[data-index]');
+            if (!item) return;
+            const index = parseInt(item.dataset.index, 10);
+            const field = target.dataset.field;
+            const value = target.value;
+            stateManager.updateFilter(index, field, value);
+        });
+
         functionsList.addEventListener('click', e => {
             const item = e.target.closest('.function-item[data-index]');
             if (!item) return;
