@@ -15,7 +15,7 @@ function handleCreateFilterFromModal(type) {
     if (type === 'VECT') {
         newFilter = { name: 'VECT', active: true, vect: numbers.join(' '), min: '1', max: '1', isCollapsed: false, label: groupName };
     } else if (type === 'ORDER') {
-        newFilter = { name: 'ORDER', active: true, percentage: '50', column: `rank${currentCriteria.charAt(0).toUpperCase() + currentCriteria.slice(1)}`, vect: numbers.join(' '), isCollapsed: false, label: groupName };
+        newFilter = { name: 'ORDER', active: true, percentage: '50', column: currentCriteria, vect: numbers.join(' '), isCollapsed: false, label: groupName };
     } else if (type === 'SOM') {
         newFilter = { name: 'SOM', active: true, column: currentCriteria, min: '', max: '', isCollapsed: false, label: groupName };
     } else if (type === 'GAP') {
