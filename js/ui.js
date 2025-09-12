@@ -631,7 +631,9 @@ function buildFilterItemHTML(filter, index, baseColumnOptions, grille) {
             `;
             break;
         case 'SOM': case 'ORDER': case 'KTG': case 'GAP':
-            controlsHtml = `<select data-field="column" class="full-width-control">${columnOptions}</select>`;
+            // On désactive le select pour ORDER si un vecteur est présent (créé depuis le modal)
+            const isDisabled = (filter.name === 'ORDER' && filter.vect) ? 'disabled' : '';
+            controlsHtml = `<select data-field="column" class="full-width-control" ${isDisabled}>${columnOptions}</select>`;
             break;
     }
     if (filter.name !== 'VECT' && filter.name !== 'ORDER') {

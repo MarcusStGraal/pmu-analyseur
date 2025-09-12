@@ -461,15 +461,25 @@ function* filterComb(iter, value, min, max, grille, column, numIndex) {
 }
 
 function* filterGap(iter, min, max, grille, column, numIndex) {
-const colData = grille[column];
-for (const c of iter) {
-const values = c.map(num => colData[numIndex[num]]).sort((a, b) => a - b);
-let gapCount = 0;
-for (let i = 1; i < values.length; i++) {
-if (values[i] - values[i - 1] === 1) gapCount++;
-}
-if (gapCount >= min && gapCount <= max) yield c;
-}
+    const colData = grille[column];
+    for (const c of iter) {
+        let isValid = true;
+        const values = c.map(num => {
+            const idx = numIndex[num];
+            if (idx === undefined || colData[idx] === null) {
+                isValid = false;
+            }
+            return colData[idx];
+        }).sort((a, b) => a - b);
+
+        if (!isValid) continue;
+
+        let gapCount = 0;
+        for (let i = 1; i < values.length; i++) {
+            if (values[i] - values[i - 1] === 1) gapCount++;
+        }
+        if (gapCount >= min && gapCount <= max) yield c;
+    }
 }
 function* filterKtg(iter, freq, min, max, grille, column, numIndex) {
     const colData = grille[column];
