@@ -630,14 +630,8 @@ function buildFilterItemHTML(filter, index, baseColumnOptions, grille) {
                 ${createSpinner('max', filter.max, 'Max')}
             `;
             break;
-        case 'SOM': case 'ORDER': case 'KTG':
+        case 'SOM': case 'ORDER': case 'KTG': case 'GAP':
             controlsHtml = `<select data-field="column" class="full-width-control">${columnOptions}</select>`;
-            break;
-        case 'COMB':
-            const uniqueValues = grille ? getUniqueValuesFromGrille(grille, filter.column) : [];
-            const valueOptions = uniqueValues.map(v => `<option value="${v}" ${String(filter.value).toUpperCase() === String(v).toUpperCase() ? 'selected' : ''}>${escapeHTML(v)}</option>`).join('');
-            controlsHtml = `<select data-field="column" class="full-width-control">${columnOptions}</select>
-                            <select data-field="value" class="full-width-control"><option value="">Choisir valeur...</option>${valueOptions}</select>`;
             break;
     }
     if (filter.name !== 'VECT' && filter.name !== 'ORDER') {

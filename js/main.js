@@ -145,7 +145,7 @@ function connectEventListeners() {
         stateManager.getState().filters.forEach(f => f.isCollapsed = true);
         const newFilter = { name: filterName, active: true, isCollapsed: false };
         if (filterName === 'VECT') { newFilter.min = '1'; newFilter.max = '1'; }
-        if (filterName === 'SOM') { newFilter.column = 'cote'; }
+        if (filterName === 'SOM' || filterName === 'GAP') { newFilter.column = 'num'; }
         if (filterName === 'ORDER') { newFilter.percentage = '50'; newFilter.column = 'rankCote'; }
         stateManager.addFilter(newFilter);
         e.target.value = '';

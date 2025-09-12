@@ -460,17 +460,17 @@ function* filterComb(iter, value, min, max, grille, column, numIndex) {
     }
 }
 
-function* filterGap(iter, gap, min, max) {
-    for (const c of iter) {
-        let gapCount = 0;
-        const sorted = [...c].sort((a, b) => a - b);
-        for (let i = 1; i < sorted.length; i++) {
-            if (sorted[i] - sorted[i - 1] === gap) gapCount++;
-        }
-        if (gapCount >= min && gapCount <= max) yield c;
-    }
+function* filterGap(iter, min, max, grille, column, numIndex) {
+const colData = grille[column];
+for (const c of iter) {
+const values = c.map(num => colData[numIndex[num]]).sort((a, b) => a - b);
+let gapCount = 0;
+for (let i = 1; i < values.length; i++) {
+if (values[i] - values[i - 1] === 1) gapCount++;
 }
-
+if (gapCount >= min && gapCount <= max) yield c;
+}
+}
 function* filterKtg(iter, freq, min, max, grille, column, numIndex) {
     const colData = grille[column];
     for (const c of iter) {
@@ -489,22 +489,29 @@ function* filterKtg(iter, freq, min, max, grille, column, numIndex) {
     }
 }
 
-function* filterOrder(iter, percentage, grille, column, numIndex) {
-    const buffer = [];
-    for (const c of iter) {
-        let score = 0;
-        for (const num of c) {
-            const idx = numIndex[num];
-            if (idx !== undefined) score += grille[column][idx];
-        }
-        buffer.push({ combo: c, score });
+function* filterOrder(iter, percentage, grille, column, numIndex, starterNumbers) {
+const allScores = starterNumbers.map(num => ({ num, score: grille[column][numIndex[num]] }));
+allScores.sort((a, b) => a.score - b.score);
+const scoreMap = Object.fromEntries(allScores.map((item, index) => [item.num, index + 1]));
+
+const buffer = [];
+for (const c of iter) {
+    let comboScore = 0;
+    for (const num of c) {
+        comboScore += scoreMap[num] || 0;
     }
-    buffer.sort((a, b) => a.score - b.score);
-    const countToKeep = Math.round(buffer.length * Math.abs(percentage) / 100);
-    const selected = percentage >= 0 ? buffer.slice(0, countToKeep) : buffer.slice(buffer.length - countToKeep);
-    for (const item of selected) yield item.combo;
+    buffer.push({ combo: c, score: comboScore });
 }
 
+buffer.sort((a, b) => a.score - b.score);
+
+const countToKeep = Math.round(buffer.length * Math.abs(percentage) / 100);
+const selected = percentage >= 0
+    ? buffer.slice(0, countToKeep)
+    : buffer.slice(buffer.length - countToKeep);
+
+for (const item of selected) yield item.combo;
+}
 export function applyAllFilters(grille, functions, betType, limit = 10000) {
     const numIndex = Object.fromEntries(grille.num.map((n, i) => [n, i]));
     const starterNumbers = grille.num.filter((num, i) => grille.statut[i] === 'PARTANT');
@@ -530,16 +537,13 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
                     const vectSet = new Set((f.vect || '').split(/[\s,]+/).map(Number));
                     iterator = filterVect(iterator, vectSet, min, max);
                     break;
-                case 'SOM':
-                    iterator = filterSom(iterator, min, max, grille, f.column, numIndex);
-                    break;
-                case 'GAP':
-                    iterator = filterGap(iterator, parseInt(f.value || 1), min, max);
-                    break;
-                case 'COMB':
-                    iterator = filterComb(iterator, f.value, min, max, grille, f.column, numIndex);
-                    break;
-                case 'KTG':
+                    case 'SOM':
+		    iterator = filterSom(iterator, min, max, grille, f.column, numIndex);
+		    break;
+		    case 'GAP':
+		    iterator = filterGap(iterator, min, max, grille, f.column, numIndex);
+		    break;
+		    case 'KTG':
                     iterator = filterKtg(iterator, parseInt(f.value || 2), min, max, grille, f.column, numIndex);
                     break;
             }
