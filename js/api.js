@@ -10,21 +10,35 @@ function formatDate(date) {
 
 // Fonction générique qui utilise notre propre backend
 async function fetchWithProxy(targetUrl) {
-    // On contacte notre backend déployé sur Render
     const proxyUrl = `https://pmu-analyseur.onrender.com/proxy?url=${encodeURIComponent(targetUrl)}`;
-    
-    const response = await fetch(proxyUrl);
-    
-    // On n'a plus besoin de manipuler data.contents, la réponse est directe.
-    if (!response.ok) {
-        // L'erreur vient soit de notre backend, soit de l'API PMU.
-        // On construit un message d'erreur plus clair
-        const errorText = await response.text();
-        throw new Error(`Impossible de charger les partants (${response.status})`);
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 secondes
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await fetch(proxyUrl);
+            if (response.ok) {
+                return response.json(); // Succès, on retourne le résultat
+            }
+            // Si le serveur est en train de démarrer (503) ou a un autre problème temporaire
+            if (response.status === 503 || response.status === 502) {
+                console.warn(`Tentative ${i + 1} échouée avec le statut ${response.status}. Nouvelle tentative dans ${retryDelay / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay)); // On attend
+            } else {
+                // Pour les autres erreurs (ex: 404), on abandonne tout de suite
+                const errorText = await response.text();
+                throw new Error(`Erreur serveur (${response.status}): ${errorText}`);
+            }
+        } catch (error) {
+            if (i === maxRetries - 1) { // Si c'est la dernière tentative, on lance l'erreur
+                throw error;
+            }
+            console.warn(`Tentative ${i + 1} a échoué (erreur réseau). Nouvelle tentative...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
     }
-    
-    // On retourne directement la réponse parsée en JSON
-    return response.json();
+    // Si toutes les tentatives échouent
+    throw new Error('Impossible de contacter le serveur après plusieurs tentatives.');
 }
 
 export async function handleLoadProgram(selectedDate) {
