@@ -631,10 +631,11 @@ function buildFilterItemHTML(filter, index, baseColumnOptions, grille) {
             `;
             break;
         case 'SOM': case 'ORDER': case 'KTG': case 'GAP':
-            // On désactive le select pour ORDER si un vecteur est présent (créé depuis le modal)
-            const isDisabled = (filter.name === 'ORDER' && filter.vect) ? 'disabled' : '';
-            controlsHtml = `<select data-field="column" class="full-width-control" ${isDisabled}>${columnOptions}</select>`;
-            break;
+// On désactive le select si un vecteur est présent (créé depuis le modal)
+const isDisabled = (filter.vect) ? 'disabled' : '';
+controlsHtml = <select data-field="column" class="full-width-control" ${isDisabled}>${columnOptions}</select>;
+break;
+}
     }
     if (filter.name !== 'VECT' && filter.name !== 'ORDER') {
          controlsHtml += createSpinner('min', filter.min, 'Min') + createSpinner('max', filter.max, 'Max');

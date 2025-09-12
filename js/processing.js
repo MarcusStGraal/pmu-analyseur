@@ -500,27 +500,33 @@ function* filterKtg(iter, freq, min, max, grille, column, numIndex) {
 }
 
 function* filterOrder(iter, percentage, grille, column, numIndex, starterNumbers) {
-const allScores = starterNumbers.map(num => ({ num, score: grille[column][numIndex[num]] }));
-allScores.sort((a, b) => a.score - b.score);
-const scoreMap = Object.fromEntries(allScores.map((item, index) => [item.num, index + 1]));
-
-const buffer = [];
-for (const c of iter) {
-    let comboScore = 0;
-    for (const num of c) {
-        comboScore += scoreMap[num] || 0;
+    // Vérification pour s'assurer que starterNumbers est bien un tableau
+    if (!Array.isArray(starterNumbers)) {
+        console.error("starterNumbers n'est pas un tableau dans filterOrder");
+        // On arrête le générateur proprement
+        return; 
     }
-    buffer.push({ combo: c, score: comboScore });
-}
+    const allScores = starterNumbers.map(num => ({ num, score: grille[column][numIndex[num]] }));
+    allScores.sort((a, b) => a.score - b.score);
+    const scoreMap = Object.fromEntries(allScores.map((item, index) => [item.num, index + 1]));
 
-buffer.sort((a, b) => a.score - b.score);
+    const buffer = [];
+    for (const c of iter) {
+        let comboScore = 0;
+        for (const num of c) {
+            comboScore += scoreMap[num] || 0;
+        }
+        buffer.push({ combo: c, score: comboScore });
+    }
 
-const countToKeep = Math.round(buffer.length * Math.abs(percentage) / 100);
-const selected = percentage >= 0
-    ? buffer.slice(0, countToKeep)
-    : buffer.slice(buffer.length - countToKeep);
+    buffer.sort((a, b) => a.score - b.score);
 
-for (const item of selected) yield item.combo;
+    const countToKeep = Math.round(buffer.length * Math.abs(percentage) / 100);
+    const selected = percentage >= 0
+        ? buffer.slice(0, countToKeep)
+        : buffer.slice(buffer.length - countToKeep);
+
+    for (const item of selected) yield item.combo;
 }
 export function applyAllFilters(grille, functions, betType, limit = 10000) {
     const numIndex = Object.fromEntries(grille.num.map((n, i) => [n, i]));
@@ -547,13 +553,13 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
                     const vectSet = new Set((f.vect || '').split(/[\s,]+/).map(Number));
                     iterator = filterVect(iterator, vectSet, min, max);
                     break;
-                    case 'SOM':
-		    iterator = filterSom(iterator, min, max, grille, f.column, numIndex);
-		    break;
-		    case 'GAP':
-		    iterator = filterGap(iterator, min, max, grille, f.column, numIndex);
-		    break;
-		    case 'KTG':
+                case 'SOM':
+                    iterator = filterSom(iterator, min, max, grille, f.column, numIndex);
+                    break;
+                case 'GAP':
+                    iterator = filterGap(iterator, min, max, grille, f.column, numIndex);
+                    break;
+                case 'KTG':
                     iterator = filterKtg(iterator, parseInt(f.value || 2), min, max, grille, f.column, numIndex);
                     break;
             }
@@ -564,7 +570,8 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
     iter = applyFilters(iter, otherFilters);
 
     if (orderFilter) {
-        iter = filterOrder(iter, parseFloat(orderFilter.percentage || 50), grille, orderFilter.column, numIndex);
+        // On passe bien starterNumbers en argument ici
+        iter = filterOrder(iter, parseFloat(orderFilter.percentage || 50), grille, orderFilter.column, numIndex, starterNumbers);
     }
     
     const combinations = [];
