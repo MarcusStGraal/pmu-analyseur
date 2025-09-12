@@ -7,14 +7,19 @@ function handleCreateFilterFromModal(type) {
     if (numbers.length === 0) return;
 
     const groupName = getCurrentModalGroupName() || 'Sélection';
+    const { currentCriteria } = stateManager.getState().ui.stats;
     
     stateManager.getState().filters.forEach(f => f.isCollapsed = true);
 
     let newFilter;
     if (type === 'VECT') {
-        newFilter = {name:'VECT', active:true, vect: numbers.join(' '), min:'1', max: '1', isCollapsed: false, label: groupName};
-    } else { 
-        newFilter = {name:'ORDER', active:true, percentage:'50', column:'rankCote', vect: numbers.join(' '), isCollapsed: false, label: groupName};
+        newFilter = { name: 'VECT', active: true, vect: numbers.join(' '), min: '1', max: '1', isCollapsed: false, label: groupName };
+    } else if (type === 'ORDER') {
+        newFilter = { name: 'ORDER', active: true, percentage: '50', column: `rank${currentCriteria.charAt(0).toUpperCase() + currentCriteria.slice(1)}`, vect: numbers.join(' '), isCollapsed: false, label: groupName };
+    } else if (type === 'SOM') {
+        newFilter = { name: 'SOM', active: true, column: currentCriteria, min: '', max: '', isCollapsed: false, label: groupName };
+    } else if (type === 'GAP') {
+        newFilter = { name: 'GAP', active: true, column: currentCriteria, min: '', max: '', isCollapsed: false, label: groupName };
     }
     
     stateManager.addFilter(newFilter);
@@ -219,6 +224,8 @@ function connectEventListeners() {
             if (e.target === modal || e.target.closest('#modal-cancel-btn')) hideFilterActionModal();
             else if (e.target.closest('#modal-create-vect-btn')) handleCreateFilterFromModal('VECT');
             else if (e.target.closest('#modal-create-order-btn')) handleCreateFilterFromModal('ORDER');
+            else if (e.target.closest('#modal-create-som-btn')) handleCreateFilterFromModal('SOM');
+            else if (e.target.closest('#modal-create-gap-btn')) handleCreateFilterFromModal('GAP');
         });
     }
     const criteriaModal = document.getElementById('criteria-profile-modal');
