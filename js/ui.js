@@ -191,12 +191,12 @@ export function renderApp(state) {
 export function showFilterActionModal(numeros, groupName) {
     currentNumbersForModal = numeros;
     currentGroupNameForModal = groupName;
-    DOM.modalInfoText.textContent = `Créer un filtre basé sur le groupe "${escapeHTML(groupName)}" (Numéros: ${numeros.join(', ')}) ?`;
-    DOM.modal.style.display = 'flex';
+    if (DOM.modalInfoText) DOM.modalInfoText.textContent = `Créer un filtre basé sur le groupe "${escapeHTML(groupName)}" (Numéros: ${numeros.join(', ')}) ?`;
+    if (DOM.modal) DOM.modal.style.display = 'flex';
 }
 
 export function hideFilterActionModal() {
-    DOM.modal.style.display = 'none';
+    if (DOM.modal) DOM.modal.style.display = 'none';
     currentNumbersForModal = [];
     currentGroupNameForModal = '';
 }
@@ -631,11 +631,9 @@ function buildFilterItemHTML(filter, index, baseColumnOptions, grille) {
             `;
             break;
         case 'SOM': case 'ORDER': case 'KTG': case 'GAP':
-// On désactive le select si un vecteur est présent (créé depuis le modal)
-const isDisabled = (filter.vect) ? 'disabled' : '';
-controlsHtml = <select data-field="column" class="full-width-control" ${isDisabled}>${columnOptions}</select>;
-break;
-}
+            const isDisabled = (filter.vect) ? 'disabled' : '';
+            controlsHtml = `<select data-field="column" class="full-width-control" ${isDisabled}>${columnOptions}</select>`;
+            break;
     }
     if (filter.name !== 'VECT' && filter.name !== 'ORDER') {
          controlsHtml += createSpinner('min', filter.min, 'Min') + createSpinner('max', filter.max, 'Max');
