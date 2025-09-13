@@ -285,47 +285,48 @@ export function populateReunionSelect(reunions, selectedReunionNum, timeZoneOffs
 }
 
 export function populateCourseSelect(courses, selectedCourseNum, timeZoneOffset, difficultyIndices) {
-if (!DOM.courseSelect) return;
-DOM.courseSelect.innerHTML = '<option value="" disabled>Course</option>';
-if (!Array.isArray(courses)) return;
-courses.forEach(course => {
-const option = document.createElement('option');
-option.value = course.numExterne;
-const difficulty = difficultyIndices[course.numExterne];
-    if (difficulty) {
-        option.style.color = difficulty.color;
-        option.style.fontWeight = 'bold';
-    }
-    
-    const isQuinteCourse = course.paris && course.paris.some(p => p.typePari === 'QUINTE_PLUS');
-    if (isQuinteCourse) {
-        option.classList.add('quinte-option');
-    }
+    if (!DOM.courseSelect) return;
+    DOM.courseSelect.innerHTML = '<option value="" disabled>Course</option>';
+    if (!Array.isArray(courses)) return;
+    courses.forEach(course => {
+        const option = document.createElement('option');
+        option.value = course.numExterne;
 
-    const heure = course.heureDepart ? new Intl.DateTimeFormat('fr-FR', {
-        timeZone: 'Europe/Paris',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(course.heureDepart) : '';
+        const difficulty = difficultyIndices[course.numExterne];
+        if (difficulty) {
+            option.style.color = difficulty.color;
+            option.style.fontWeight = 'bold';
+        }
+        
+        const isQuinteCourse = course.paris && course.paris.some(p => p.typePari === 'QUINTE_PLUS');
+        if (isQuinteCourse) {
+            option.classList.add('quinte-option');
+        }
 
-    const partantsCount = course.nombrePartants || course.nombreDeclaresPartants;
-    const partantsText = partantsCount ? `${partantsCount}p` : '';
-    
-    let discipline = course.specialite || course.discipline;
-    discipline = discipline ? discipline.replace(/TROT_|OBSTACLE/g, '') : '';
-    const disciplineText = discipline ? `(${discipline})` : '';
+        const heure = course.heureDepart ? new Intl.DateTimeFormat('fr-FR', {
+            timeZone: 'Europe/Paris',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(course.heureDepart) : '';
 
-    let courseName = course.libelle;
-    if (isQuinteCourse) {
-        courseName = `★ ${courseName}`;
-    }
-    const textParts = [heure, partantsText, `C${course.numExterne}`, disciplineText, `- ${courseName}`];
-    option.textContent = textParts.filter(Boolean).join(' ');
-    DOM.courseSelect.appendChild(option);
-});
-DOM.courseSelect.value = selectedCourseNum || '';
-if(!selectedCourseNum) DOM.courseSelect.selectedIndex = 0;
-DOM.courseSelect.disabled = false;
+        const partantsCount = course.nombrePartants || course.nombreDeclaresPartants;
+        const partantsText = partantsCount ? `${partantsCount}p` : '';
+        
+        let discipline = course.specialite || course.discipline;
+        discipline = discipline ? discipline.replace(/TROT_|OBSTACLE/g, '') : '';
+        const disciplineText = discipline ? `(${discipline})` : '';
+
+        let courseName = course.libelle;
+        if (isQuinteCourse) {
+            courseName = `★ ${courseName}`;
+        }
+        const textParts = [heure, partantsText, `C${course.numExterne}`, disciplineText, `- ${courseName}`];
+        option.textContent = textParts.filter(Boolean).join(' ');
+        DOM.courseSelect.appendChild(option);
+    });
+    DOM.courseSelect.value = selectedCourseNum || '';
+    if(!selectedCourseNum) DOM.courseSelect.selectedIndex = 0;
+    DOM.courseSelect.disabled = false;
 }
 
 export function displayReunionInfo(reunion) {
