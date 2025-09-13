@@ -16,16 +16,19 @@ const DOM = {
     nonPartantsInfoDiv: document.getElementById('nonPartantsInfoDiv'),
     statsPlaceholder: document.getElementById('stats-placeholder'),
     statsContent: document.getElementById('stats-container'),
+    statsTitle: document.getElementById('stats-title'),
     criteriaSelector: document.getElementById('criteria-selector-container'),
     statsExplorerGrid: document.getElementById('stats-explorer-grid'),
     sortToggleButton: document.getElementById('sort-toggle-btn'),
     filtersPlaceholder: document.getElementById('filters-placeholder'),
     filtersContent: document.getElementById('filters-content'),
+    filtersTitle: document.getElementById('filters-title'),
     genererButton: document.getElementById('generer'),
     functionsList: document.getElementById('functions-list'),
     activeFilterCount: document.getElementById('active-filter-count'),
     resultsPlaceholder: document.getElementById('results-placeholder'),
     resultsContent: document.getElementById('results-content'),
+    resultsTitle: document.getElementById('results-title'),
     resultsHeader: document.getElementById('results-header'),
     resultsWarning: document.getElementById('results-warning'),
     resultsDisplayArea: document.getElementById('results-display-area'),
@@ -45,6 +48,20 @@ const DOM = {
     strategieNotes: document.getElementById('strategie-notes')
 };
 
+function updateTabTitles(state) {
+    const { selectedReunionNum, selectedCourseNum } = state;
+    
+    if (selectedReunionNum && selectedCourseNum) {
+        const raceSuffix = ` R${selectedReunionNum}C${selectedCourseNum}`;
+        if (DOM.statsTitle) DOM.statsTitle.textContent = `ANALYSE${raceSuffix}`;
+        if (DOM.filtersTitle) DOM.filtersTitle.textContent = `MES FILTRES${raceSuffix}`;
+        if (DOM.resultsTitle) DOM.resultsTitle.textContent = `MES TICKETS${raceSuffix}`;
+    } else {
+        if (DOM.statsTitle) DOM.statsTitle.textContent = 'Analyse des Partants';
+        if (DOM.filtersTitle) DOM.filtersTitle.textContent = 'Mes Filtres';
+        if (DOM.resultsTitle) DOM.resultsTitle.textContent = 'Mes Tickets';
+    }
+}
 if (DOM.status) {
     DOM.status.setAttribute('aria-live', 'polite');
 }
@@ -129,8 +146,8 @@ let currentGroupNameForModal = '';
 
 export function renderApp(state) {
     document.body.classList.toggle('is-loading', state.isLoading);
-
     updateStatus(state.status.message, state.status.isError);
+    updateTabTitles(state);
 
     if (state.programmeData && state.programmeData.programme) {
         const timeZoneOffset = state.programmeData.programme.timeZoneOffset || 0;
@@ -179,7 +196,7 @@ export function renderApp(state) {
 
     const { combinations, betName, betType, limitReached, showChampReduit } = state.results;
     if (DOM.champReduitToggle) DOM.champReduitToggle.checked = showChampReduit;
-    updateResultsTab(combinations.length, betName, betType, limitReached, state.selectedReunionNum, state.selectedCourseNum);
+    updateResultsTab(combinations.length, betName, betType, limitReached);
     renderCombinationsProgressively(combinations, betType, showChampReduit);
 }
 
@@ -457,7 +474,7 @@ export function updateFunctionsList(functions, grille) {
     DOM.functionsList.innerHTML = functions.map((filter, index) => buildFilterItemHTML(filter, index, columnOptionsHTML, grille)).join('');
 }
 
-export function updateResultsTab(combinationCount, betName, betSize, limitReached = false, reunionNum, courseNum) {
+export function updateResultsTab(combinationCount, betName, betSize, limitReached = false) {
     const hasCombinations = combinationCount > 0;
     if (DOM.resultsPlaceholder) DOM.resultsPlaceholder.style.display = hasCombinations ? 'none' : 'block';
     if (DOM.resultsContent) DOM.resultsContent.style.display = hasCombinations ? 'block' : 'none';
@@ -474,11 +491,7 @@ export function updateResultsTab(combinationCount, betName, betSize, limitReache
     if (!hasCombinations) return;
     
     if (DOM.resultsHeader) {
-        let racePrefix = '';
-        if (reunionNum && courseNum) {
-            racePrefix = `<strong>R${reunionNum}C${courseNum}</strong> - `;
-        }
-        let headerText = `${racePrefix}<strong>${combinationCount}</strong> combinaisons trouvées`;
+        let headerText = `<strong>${combinationCount}</strong> combinaisons`;
         if (limitReached) {
             headerText += ` (limite atteinte)`;
         }
