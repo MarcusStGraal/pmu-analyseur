@@ -175,14 +175,13 @@ export function renderApp(state) {
         showSelectionContainer();
         const selectedReunion = state.programmeData.programme.reunions.find(r => r.numOfficiel == state.selectedReunionNum);
         if(selectedReunion) {
-            populateCourseSelect(selectedReunion.courses, state.selectedCourseNum, timeZoneOffset, state.difficultyIndices);            
+            populateCourseSelect(selectedReunion.courses, state.selectedCourseNum, timeZoneOffset);            
             displayReunionInfo(selectedReunion);
             const selectedCourse = selectedReunion.courses.find(c => c.numExterne == state.selectedCourseNum);
             if(selectedCourse) {
                  displayCourseInfo(selectedCourse, state.currentRaceDifficulty);
             }
         }
-    }
 
     if (state.participantsData) {
         displayNonPartantsInfo(state.participantsData);
@@ -294,19 +293,13 @@ export function populateReunionSelect(reunions, selectedReunionNum, timeZoneOffs
     DOM.reunionSelect.disabled = false;
 }
 
-export function populateCourseSelect(courses, selectedCourseNum, timeZoneOffset, difficultyIndices) {
+export function populateCourseSelect(courses, selectedCourseNum, timeZoneOffset) {
     if (!DOM.courseSelect) return;
     DOM.courseSelect.innerHTML = '<option value="" disabled>Course</option>';
     if (!Array.isArray(courses)) return;
     courses.forEach(course => {
         const option = document.createElement('option');
         option.value = course.numExterne;
-
-        const difficulty = difficultyIndices[course.numExterne];
-        if (difficulty) {
-            option.style.color = difficulty.color;
-            option.style.fontWeight = 'bold';
-        }
         
         const isQuinteCourse = course.paris && course.paris.some(p => p.typePari === 'QUINTE_PLUS');
         if (isQuinteCourse) {
