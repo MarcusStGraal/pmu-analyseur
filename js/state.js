@@ -13,8 +13,7 @@ const initialState = {
     programmeData: null,
     dailyAnalysisCache: null,
     participantsData: null,
-    difficultyIndices: {}, // Pour stocker les indices de toutes les courses
-    currentRaceDifficulty: null, // Pour la course active
+    currentRaceDifficulty: null,
     currentRaceNote: '',
     filters: [],
     savedFilterSets: [],
@@ -373,43 +372,13 @@ class StateManager {
         }
         this.setState({ isLoading: false });
     }
-    async selectReunion(reunionNum, courseToSelect = null) {
+        async selectReunion(reunionNum, courseToSelect = null) {
         this.setState({
-            isLoading: true,
-            status: { message: `Chargement de la réunion R${reunionNum}...` },
             selectedReunionNum: reunionNum,
             selectedCourseNum: null,
             participantsData: null,
-            difficultyIndices: {}
+            currentRaceDifficulty: null
         });
-
-        const { programmeData, selectedDate } = this._state;
-        const dateStr = formatDate(new Date(selectedDate));
-        const reunionData = programmeData.programme.reunions.find(r => r.numOfficiel == reunionNum);
-        
-        const difficultyPromises = reunionData.courses.map(async course => {
-            const courseId = `C${course.numExterne}`;
-            const participantsKey = `participants-${dateStr}-R${reunionNum}-${courseId}`;
-            let participants = await cache.get('apiResponses', participantsKey);
-            if (!participants) {
-                participants = await fetchParticipants(dateStr, `R${reunionNum}`, courseId);
-                if(participants) await cache.set('apiResponses', { key: participantsKey, data: participants });
-            }
-            if (participants) {
-                const grille = this.processParticipantsData(participants, null, true); // `true` pour un calcul léger
-                return { courseNum: course.numExterne, index: grille.difficultyIndex };
-            }
-            return { courseNum: course.numExterne, index: null };
-        });
-
-        const results = await Promise.all(difficultyPromises);
-        const newDifficultyIndices = Object.fromEntries(results.map(r => [r.courseNum, r.index]));
-        
-        this.setState({
-            difficultyIndices: newDifficultyIndices,
-            isLoading: false
-        });
-
         if (courseToSelect) {
             await this.selectCourse(courseToSelect);
         }
@@ -423,31 +392,32 @@ class StateManager {
             currentRaceNote: '',
             ui: { ...this._state.ui, stats: { ...initialState.ui.stats, manualSelection: [] } }
         });
+
         const { programmeData, selectedDate, selectedReunionNum } = this._state;
         const date = new Date(selectedDate);
         const dateStr = formatDate(date);
         const noteId = `${dateStr}-R${selectedReunionNum}-C${courseNum}`;
-        const savedNote = await cache.get('raceNotes', noteId);
-        if (savedNote) {
-            this.setState({ currentRaceNote: savedNote.note });
-        }
         const reunionId = `R${selectedReunionNum}`;
         const courseId = `C${courseNum}`;
         const participantsKey = `participants-${dateStr}-${reunionId}-${courseId}`;
         const performancesKey = `performances-${dateStr}-${reunionId}-${courseId}`;
+        
+        const savedNote = await cache.get('raceNotes', noteId);
+        if (savedNote) {
+            this.setState({ currentRaceNote: savedNote.note });
+        }
+
         const [cachedParticipants, cachedPerformances] = await Promise.all([
             cache.get('apiResponses', participantsKey),
             cache.get('apiResponses', performancesKey)
         ]);
 
-        let finalParticipantsData = null;
-
         if (cachedParticipants) {
-            finalParticipantsData = this.processParticipantsData(cachedParticipants, cachedPerformances);
-            this.setState({ 
-                participantsData: finalParticipantsData,
-                currentRaceDifficulty: finalParticipantsData.difficultyIndex,
-                status: { message: 'Partants chargés du cache.' } 
+            const participantsData = this.processParticipantsData(cachedParticipants, cachedPerformances);
+            this.setState({
+                participantsData: participantsData,
+                currentRaceDifficulty: participantsData.difficultyIndex,
+                status: { message: 'Partants chargés du cache.' }
             });
         }
 
@@ -461,10 +431,10 @@ class StateManager {
             if (freshPerformances) {
                 await cache.set('apiResponses', { key: performancesKey, data: freshPerformances });
             }
-            finalParticipantsData = this.processParticipantsData(freshParticipants, freshPerformances);
-            this.setState({ 
-                participantsData: finalParticipantsData,
-                currentRaceDifficulty: finalParticipantsData.difficultyIndex,
+            const participantsData = this.processParticipantsData(freshParticipants, freshPerformances);
+            this.setState({
+                participantsData: participantsData,
+                currentRaceDifficulty: participantsData.difficultyIndex,
                 status: { message: 'Données de la course mises à jour.' }
             });
         }
@@ -472,20 +442,16 @@ class StateManager {
         this.setState({ isLoading: false });
     }
 
-    processParticipantsData(participantsJson, performancesJson, isLightCalculation = false) {
+    processParticipantsData(participantsJson, performancesJson) {
         if (!participantsJson) return null;
-        // Pour le calcul léger, on a juste besoin du numéro de la course
-        const courseNumForData = isLightCalculation 
-            ? participantsJson.participants[0].numCourse
-            : this._state.selectedCourseNum;
-
-        const { programmeData, dailyAnalysisCache, selectedReunionNum } = this._state;
+        const { programmeData, dailyAnalysisCache, selectedReunionNum, selectedCourseNum } = this._state;
         
-        if (!isLightCalculation && this._state.isDailyAnalysisEnabled && (!dailyAnalysisCache || !dailyAnalysisCache.influenceScores)) {
+        if (this._state.isDailyAnalysisEnabled && (!dailyAnalysisCache || !dailyAnalysisCache.influenceScores)) {
             console.error("dailyAnalysisCache.influenceScores n'est pas disponible. La grille sera incomplète.");
         }
         const selectedReunionData = programmeData.programme.reunions.find(r => r.numOfficiel == selectedReunionNum);
-        const selectedCourseData = selectedReunionData.courses.find(c => c.numExterne == courseNumForData);        const courseContext = {
+        const selectedCourseData = selectedReunionData.courses.find(c => c.numExterne == selectedCourseNum);
+        const courseContext = {
             reunionDate: selectedReunionData.dateReunion,
             discipline: selectedCourseData.specialite || selectedCourseData.discipline || '',
             distance: selectedCourseData.distance,
