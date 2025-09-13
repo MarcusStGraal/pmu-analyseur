@@ -461,25 +461,26 @@ function* filterComb(iter, value, min, max, grille, column, numIndex) {
     }
 }
 
-function* filterGap(iter, min, max, grille, column, numIndex) {
-    const colData = grille[column];
+function* filterGap(iter, min, max, gapSize, positionMap) {
     for (const c of iter) {
-        let isValid = true;
-        const values = c.map(num => {
-            const idx = numIndex[num];
-            if (idx === undefined || colData[idx] === null) {
-                isValid = false;
-            }
-            return colData[idx];
-        }).sort((a, b) => a - b);
+        const positions = c.map(num => positionMap.get(num))
+                           .filter(pos => pos !== undefined)
+                           .sort((a, b) => a - b);
 
-        if (!isValid) continue;
+        if (positions.length !== c.length) continue;
 
         let gapCount = 0;
-        for (let i = 1; i < values.length; i++) {
-            if (values[i] - values[i - 1] === 1) gapCount++;
+        for (let i = 0; i < positions.length; i++) {
+            for (let j = i + 1; j < positions.length; j++) {
+                if (positions[j] - positions[i] === gapSize) {
+                    gapCount++;
+                }
+            }
         }
-        if (gapCount >= min && gapCount <= max) yield c;
+
+        if (gapCount >= min && gapCount <= max) {
+            yield c;
+        }
     }
 }
 function* filterKtg(iter, freq, min, max, grille, column, numIndex) {
@@ -569,26 +570,31 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
     const orderFilter = functions.find(f => f.name === 'ORDER' && f.active);
     const otherFilters = functions.filter(f => f.name !== 'ORDER');
 
-    // SI UN FILTRE ORDER EXISTE, ON L'APPLIQUE EN PREMIER POUR DÉFINIR L'ORDRE DE BASE
     if (orderFilter) {
         const column = orderFilter.column;
         const percentage = parseFloat(orderFilter.percentage || 100);
-
         const isAscendingBest = column.startsWith('rank') || column.includes('PerfNorm') || column.includes('cote');
-
         starterNumbers.sort((a, b) => {
             const scoreA = grille[column][numIndex[a]];
             const scoreB = grille[column][numIndex[b]];
-            if (scoreA === null) return 1;
-            if (scoreB === null) return -1;
+            if (scoreA === null) return 1; if (scoreB === null) return -1;
             return isAscendingBest ? scoreA - scoreB : scoreB - scoreA;
         });
-
-        // Si le pourcentage est négatif, on inverse l'ordre
-        if (percentage < 0) {
-            starterNumbers.reverse();
-        }
+        if (percentage < 0) starterNumbers.reverse();
     }
+
+    const positionMaps = {};
+    functions.forEach(f => {
+        if (f.name === 'GAP' && f.active && f.column && !positionMaps[f.column]) {
+            const sortable = starterNumbers
+                .map(num => ({ num, value: grille[f.column][numIndex[num]] }))
+                .filter(item => item.value !== null);
+            const isAsc = f.column.startsWith('rank') || ['cote', 'dernierePerfNorm', 'age', 'ecartDistance'].includes(f.column);
+            sortable.sort((a, b) => isAsc ? a.value - b.value : b.value - a.value);
+            const sortedHorses = sortable.map(item => item.num);
+            positionMaps[f.column] = new Map(sortedHorses.map((num, index) => [num, index]));
+        }
+    });
 
     let iter = genererCombinaisons(starterNumbers, betType);
     
@@ -597,9 +603,8 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
             if (!f.active) continue;
             let min = parseFloat(f.min || 0);
             let max = parseFloat(f.max || Infinity);
-            if (!isNaN(min) && !isNaN(max) && min > max) {
-                [min, max] = [max, min];
-            }
+            if (!isNaN(min) && !isNaN(max) && min > max) [min, max] = [max, min];
+            
             switch (f.name) {
                 case 'VECT':
                     const vectSet = new Set((f.vect || '').split(/[\s,]+/).map(Number));
@@ -609,7 +614,11 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
                     iterator = filterSom(iterator, min, max, grille, f.column, numIndex);
                     break;
                 case 'GAP':
-                    iterator = filterGap(iterator, min, max, grille, f.column, numIndex);
+                    const positionMap = positionMaps[f.column];
+                    if (positionMap) {
+                        const gapSize = parseInt(f.value || 1, 10);
+                        iterator = filterGap(iterator, min, max, gapSize, positionMap);
+                    }
                     break;
                 case 'KTG':
                     iterator = filterKtg(iterator, parseInt(f.value || 2), min, max, grille, f.column, numIndex);
@@ -623,12 +632,9 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
     
     const combinations = [];
     let limitReached = false;
-
-    // Le pourcentage de ORDER s'applique ici, après les autres filtres
     const totalCombinationsAfterFilters = Array.from(iter);
     const percentageToKeep = orderFilter ? Math.abs(parseFloat(orderFilter.percentage || 100)) : 100;
     const countToKeep = Math.round(totalCombinationsAfterFilters.length * percentageToKeep / 100);
-
     const finalCombinations = totalCombinationsAfterFilters.slice(0, countToKeep);
 
     for (const combo of finalCombinations) {
