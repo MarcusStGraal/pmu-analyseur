@@ -500,33 +500,62 @@ function* filterKtg(iter, freq, min, max, grille, column, numIndex) {
 }
 
 function* filterOrder(iter, percentage, grille, column, numIndex, starterNumbers) {
-    // Vérification pour s'assurer que starterNumbers est bien un tableau
     if (!Array.isArray(starterNumbers)) {
         console.error("starterNumbers n'est pas un tableau dans filterOrder");
-        // On arrête le générateur proprement
         return; 
     }
-    const allScores = starterNumbers.map(num => ({ num, score: grille[column][numIndex[num]] }));
-    allScores.sort((a, b) => a.score - b.score);
-    const scoreMap = Object.fromEntries(allScores.map((item, index) => [item.num, index + 1]));
 
-    const buffer = [];
-    for (const c of iter) {
-        let comboScore = 0;
-        for (const num of c) {
-            comboScore += scoreMap[num] || 0;
-        }
-        buffer.push({ combo: c, score: comboScore });
+    // Déterminer la direction du tri initial basé sur EXPLORER_CRITERIA (nécessite une info supplémentaire ou une heuristique)
+    // Heuristique simple: les colonnes de rang (rank) sont ascendantes, les autres descendantes par défaut pour "meilleur"
+    const isAscendingBest = column.startsWith('rank') || column.includes('PerfNorm') || column.includes('cote');
+    
+    // 1. Établir le classement des chevaux
+    const allScores = starterNumbers.map(num => {
+        const idx = numIndex[num];
+        const score = (idx !== undefined && grille[column][idx] !== null) ? grille[column][idx] : (isAscendingBest ? Infinity : -Infinity);
+        return { num, score };
+    });
+
+    // Tri selon la nature du critère
+    if (isAscendingBest) {
+        allScores.sort((a, b) => a.score - b.score); // Le plus petit est le meilleur
+    } else {
+        allScores.sort((a, b) => b.score - a.score); // Le plus grand est le meilleur
     }
 
-    buffer.sort((a, b) => a.score - b.score);
+    // Créer une map Numéro -> Rang (de 1 à N)
+    const rankMap = new Map(allScores.map((item, index) => [item.num, index + 1]));
 
+    // 2. Calculer le score de chaque combinaison
+    const buffer = [];
+    for (const c of iter) {
+        let rankSum = 0;
+        let isValid = true;
+        for (const num of c) {
+            const rank = rankMap.get(num);
+            if (rank === undefined) {
+                isValid = false;
+                break;
+            }
+            rankSum += rank;
+        }
+        if (isValid) {
+            buffer.push({ combo: c, rankSum });
+        }
+    }
+
+    // 3. Trier les combinaisons par leur somme de rangs
+    buffer.sort((a, b) => a.rankSum - b.rankSum);
+
+    // 4. Appliquer le filtre de pourcentage
     const countToKeep = Math.round(buffer.length * Math.abs(percentage) / 100);
     const selected = percentage >= 0
         ? buffer.slice(0, countToKeep)
         : buffer.slice(buffer.length - countToKeep);
 
-    for (const item of selected) yield item.combo;
+    for (const item of selected) {
+        yield item.combo;
+    }
 }
 export function applyAllFilters(grille, functions, betType, limit = 10000) {
     const numIndex = Object.fromEntries(grille.num.map((n, i) => [n, i]));
