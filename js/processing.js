@@ -559,15 +559,37 @@ function* filterOrder(iter, percentage, grille, column, numIndex, starterNumbers
 }
 export function applyAllFilters(grille, functions, betType, limit = 10000) {
     const numIndex = Object.fromEntries(grille.num.map((n, i) => [n, i]));
-    const starterNumbers = grille.num.filter((num, i) => grille.statut[i] === 'PARTANT');
+    let starterNumbers = grille.num.filter((num, i) => grille.statut[i] === 'PARTANT');
     
     if (starterNumbers.length < betType) {
         return { combinations: [], limitReached: false };
     }
 
-    let iter = genererCombinaisons(starterNumbers, betType);
     const orderFilter = functions.find(f => f.name === 'ORDER' && f.active);
     const otherFilters = functions.filter(f => f.name !== 'ORDER');
+
+    // SI UN FILTRE ORDER EXISTE, ON L'APPLIQUE EN PREMIER POUR DÉFINIR L'ORDRE DE BASE
+    if (orderFilter) {
+        const column = orderFilter.column;
+        const percentage = parseFloat(orderFilter.percentage || 100);
+
+        const isAscendingBest = column.startsWith('rank') || column.includes('PerfNorm') || column.includes('cote');
+
+        starterNumbers.sort((a, b) => {
+            const scoreA = grille[column][numIndex[a]];
+            const scoreB = grille[column][numIndex[b]];
+            if (scoreA === null) return 1;
+            if (scoreB === null) return -1;
+            return isAscendingBest ? scoreA - scoreB : scoreB - scoreA;
+        });
+
+        // Si le pourcentage est négatif, on inverse l'ordre
+        if (percentage < 0) {
+            starterNumbers.reverse();
+        }
+    }
+
+    let iter = genererCombinaisons(starterNumbers, betType);
     
     const applyFilters = (iterator, filterList) => {
         for (const f of filterList) {
@@ -597,15 +619,18 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
     };
     
     iter = applyFilters(iter, otherFilters);
-
-    if (orderFilter) {
-        // On passe bien starterNumbers en argument ici
-        iter = filterOrder(iter, parseFloat(orderFilter.percentage || 50), grille, orderFilter.column, numIndex, starterNumbers);
-    }
     
     const combinations = [];
     let limitReached = false;
-    for (const combo of iter) {
+
+    // Le pourcentage de ORDER s'applique ici, après les autres filtres
+    const totalCombinationsAfterFilters = Array.from(iter);
+    const percentageToKeep = orderFilter ? Math.abs(parseFloat(orderFilter.percentage || 100)) : 100;
+    const countToKeep = Math.round(totalCombinationsAfterFilters.length * percentageToKeep / 100);
+
+    const finalCombinations = totalCombinationsAfterFilters.slice(0, countToKeep);
+
+    for (const combo of finalCombinations) {
         combinations.push(combo);
         if (combinations.length >= limit) {
             limitReached = true;
