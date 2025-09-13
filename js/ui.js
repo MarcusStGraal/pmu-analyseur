@@ -49,13 +49,23 @@ const DOM = {
 };
 
 function updateTabTitles(state) {
-    const { selectedReunionNum, selectedCourseNum } = state;
+    const { selectedReunionNum, selectedCourseNum, currentRaceDifficulty } = state;
+    const color = currentRaceDifficulty ? currentRaceDifficulty.color : 'inherit';
     
     if (selectedReunionNum && selectedCourseNum) {
         const raceSuffix = ` R${selectedReunionNum}C${selectedCourseNum}`;
-        if (DOM.statsTitle) DOM.statsTitle.textContent = `ANALYSE${raceSuffix}`;
-        if (DOM.filtersTitle) DOM.filtersTitle.textContent = `MES FILTRES${raceSuffix}`;
-        if (DOM.resultsTitle) DOM.resultsTitle.textContent = `MES TICKETS${raceSuffix}`;
+        if (DOM.statsTitle) {
+            DOM.statsTitle.textContent = `ANALYSE${raceSuffix}`;
+            DOM.statsTitle.style.color = color;
+        }
+        if (DOM.filtersTitle) {
+            DOM.filtersTitle.textContent = `MES FILTRES${raceSuffix}`;
+            DOM.filtersTitle.style.color = color;
+        }
+        if (DOM.resultsTitle) {
+            DOM.resultsTitle.textContent = `MES TICKETS${raceSuffix}`;
+            DOM.resultsTitle.style.color = color;
+        }
     } else {
         if (DOM.statsTitle) DOM.statsTitle.textContent = 'Analyse des Partants';
         if (DOM.filtersTitle) DOM.filtersTitle.textContent = 'Mes Filtres';
@@ -155,11 +165,11 @@ export function renderApp(state) {
         showSelectionContainer();
         const selectedReunion = state.programmeData.programme.reunions.find(r => r.numOfficiel == state.selectedReunionNum);
         if(selectedReunion) {
-            populateCourseSelect(selectedReunion.courses, state.selectedCourseNum, timeZoneOffset);            
+            populateCourseSelect(selectedReunion.courses, state.selectedCourseNum, timeZoneOffset, state.difficultyIndices);            
             displayReunionInfo(selectedReunion);
             const selectedCourse = selectedReunion.courses.find(c => c.numExterne == state.selectedCourseNum);
             if(selectedCourse) {
-                 displayCourseInfo(selectedCourse);
+                 displayCourseInfo(selectedCourse, state.currentRaceDifficulty);
             }
         }
     }
@@ -274,43 +284,48 @@ export function populateReunionSelect(reunions, selectedReunionNum, timeZoneOffs
     DOM.reunionSelect.disabled = false;
 }
 
-export function populateCourseSelect(courses, selectedCourseNum, timeZoneOffset) {
-    if (!DOM.courseSelect) return;
-    DOM.courseSelect.innerHTML = '<option value="" disabled>Course</option>';
-    if (!Array.isArray(courses)) return;
-    courses.forEach(course => {
-        const option = document.createElement('option');
-        option.value = course.numExterne;
-        
-        const isQuinteCourse = course.paris && course.paris.some(p => p.typePari === 'QUINTE_PLUS');
-        if (isQuinteCourse) {
-            option.classList.add('quinte-option');
-        }
+export function populateCourseSelect(courses, selectedCourseNum, timeZoneOffset, difficultyIndices) {
+if (!DOM.courseSelect) return;
+DOM.courseSelect.innerHTML = '<option value="" disabled>Course</option>';
+if (!Array.isArray(courses)) return;
+courses.forEach(course => {
+const option = document.createElement('option');
+option.value = course.numExterne;
+const difficulty = difficultyIndices[course.numExterne];
+    if (difficulty) {
+        option.style.color = difficulty.color;
+        option.style.fontWeight = 'bold';
+    }
+    
+    const isQuinteCourse = course.paris && course.paris.some(p => p.typePari === 'QUINTE_PLUS');
+    if (isQuinteCourse) {
+        option.classList.add('quinte-option');
+    }
 
-        const heure = course.heureDepart ? new Intl.DateTimeFormat('fr-FR', {
-            timeZone: 'Europe/Paris',
-            hour: '2-digit',
-            minute: '2-digit'
-        }).format(course.heureDepart) : '';
+    const heure = course.heureDepart ? new Intl.DateTimeFormat('fr-FR', {
+        timeZone: 'Europe/Paris',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(course.heureDepart) : '';
 
-        const partantsCount = course.nombrePartants || course.nombreDeclaresPartants;
-        const partantsText = partantsCount ? `${partantsCount}p` : '';
-        
-        let discipline = course.specialite || course.discipline;
-        discipline = discipline ? discipline.replace(/TROT_|OBSTACLE/g, '') : '';
-        const disciplineText = discipline ? `(${discipline})` : '';
+    const partantsCount = course.nombrePartants || course.nombreDeclaresPartants;
+    const partantsText = partantsCount ? `${partantsCount}p` : '';
+    
+    let discipline = course.specialite || course.discipline;
+    discipline = discipline ? discipline.replace(/TROT_|OBSTACLE/g, '') : '';
+    const disciplineText = discipline ? `(${discipline})` : '';
 
-        let courseName = course.libelle;
-        if (isQuinteCourse) {
-            courseName = `★ ${courseName}`;
-        }
-        const textParts = [heure, partantsText, `C${course.numExterne}`, disciplineText, `- ${courseName}`];
-        option.textContent = textParts.filter(Boolean).join(' ');
-        DOM.courseSelect.appendChild(option);
-    });
-    DOM.courseSelect.value = selectedCourseNum || '';
-    if(!selectedCourseNum) DOM.courseSelect.selectedIndex = 0;
-    DOM.courseSelect.disabled = false;
+    let courseName = course.libelle;
+    if (isQuinteCourse) {
+        courseName = `★ ${courseName}`;
+    }
+    const textParts = [heure, partantsText, `C${course.numExterne}`, disciplineText, `- ${courseName}`];
+    option.textContent = textParts.filter(Boolean).join(' ');
+    DOM.courseSelect.appendChild(option);
+});
+DOM.courseSelect.value = selectedCourseNum || '';
+if(!selectedCourseNum) DOM.courseSelect.selectedIndex = 0;
+DOM.courseSelect.disabled = false;
 }
 
 export function displayReunionInfo(reunion) {
@@ -323,13 +338,41 @@ export function displayReunionInfo(reunion) {
     }
 }
 
-export function displayCourseInfo(course) {
-    if (course && course.conditions) {
-        DOM.courseInfoDiv.innerHTML = `<strong>Conditions :</strong> ${escapeHTML(course.conditions)}`;
-        DOM.courseInfoDiv.style.display = 'block';
-    } else {
-        DOM.courseInfoDiv.style.display = 'none';
-    }
+export function displayCourseInfo(course, difficulty) {
+let content = '';
+if (course && course.conditions) {
+content += <strong>Conditions :</strong> ${escapeHTML(course.conditions)};
+}
+if (difficulty) {
+content += `<br><strong>Indice Difficulté :</strong> <span style="color:${difficulty.color}; font-weight:bold;">
+d
+i
+f
+f
+i
+c
+u
+l
+t
+y
+.
+s
+c
+o
+r
+e
+/
+100
+(
+difficulty.score/100(
+{difficulty.level})</span>`;
+}
+if (content) {
+    DOM.courseInfoDiv.innerHTML = content;
+    DOM.courseInfoDiv.style.display = 'block';
+} else {
+    DOM.courseInfoDiv.style.display = 'none';
+}
 }
 
 export function displayNonPartantsInfo(participantsData) {

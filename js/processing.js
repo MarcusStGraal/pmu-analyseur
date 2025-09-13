@@ -335,8 +335,9 @@ export function createGrilleFromParticipants(participantsJson, performancesJson,
     });
     
     grille.pertinentCriteria = Object.keys(grille).filter(key => Array.isArray(grille[key]));
+    grille.difficultyIndex = calculateDifficultyIndex(grille);
 
-    return grille;
+return grille;
 }
 
 export function getUniqueValuesFromGrille(grille, columnKey) {
@@ -639,4 +640,54 @@ export function applyAllFilters(grille, functions, betType, limit = 10000) {
     }
     
     return { combinations, limitReached };
+}
+
+export function calculateDifficultyIndex(grille) {
+    const partants = grille.num.filter((num, i) => grille.statut[i] === 'PARTANT');
+    if (partants.length < 8) return { score: 15, level: 'facile', color: 'var(--success-color)' };
+
+    // 1. Score basé sur le nombre de partants (Pondération: 20%)
+    const scorePartants = Math.min(partants.length * 5, 100);
+
+    // 2. Score basé sur les cotes (Pondération: 45%)
+    const cotes = partants.map(num => grille.cote[grille.num.indexOf(num)]).filter(c => c !== null).sort((a, b) => a - b);
+    let scoreCotes = 0;
+    if (cotes.length > 5) {
+        const coteFavori = cotes[0];
+        const ecartCotes = cotes[4] / coteFavori;
+        const scoreFavori = Math.min(coteFavori * 10, 100);
+        const scoreEcart = Math.min(100 - (ecartCotes * 20), 100);
+        scoreCotes = (scoreFavori * 0.6) + (scoreEcart * 0.4);
+    }
+
+    // 3. Score basé sur l'homogénéité et l'incertitude (Pondération: 35%)
+    let scoreLot = 0;
+    if (grille.discipline === 'PLAT' || grille.discipline === 'OBSTACLE') {
+        const valeurs = partants.map(num => grille.valeur[grille.num.indexOf(num)]).filter(v => v !== null);
+        if (valeurs.length > 1) {
+            const ecartValeur = Math.max(...valeurs) - Math.min(...valeurs);
+            scoreLot = Math.max(100 - (ecartValeur * 8), 0);
+        }
+    } else { // TROT
+        const gains = partants.map(num => grille.gainsCarriere[grille.num.indexOf(num)]).filter(g => g !== null);
+        if (gains.length > 1) {
+            const maxGains = Math.max(...gains);
+            const ecartRelatif = (maxGains - Math.min(...gains)) / maxGains;
+            const scoreHomogeneite = (1 - ecartRelatif) * 100;
+            
+            const incertitudes = partants.filter(num => {
+                const idx = grille.num.indexOf(num);
+                return grille.coursesApresAbsence[idx] <= 1 || grille.gainsParCourse[idx] < 500;
+            }).length;
+            const scoreIncertitude = (incertitudes / partants.length) * 100;
+
+            scoreLot = (scoreHomogeneite * 0.5) + (scoreIncertitude * 0.5);
+        }
+    }
+
+    const finalScore = Math.round((scorePartants * 0.20) + (scoreCotes * 0.45) + (scoreLot * 0.35));
+
+    if (finalScore <= 40) return { score: finalScore, level: 'facile', color: 'var(--success-color)' };
+    if (finalScore <= 65) return { score: finalScore, level: 'moyen', color: 'var(--warning-color)' };
+    return { score: finalScore, level: 'difficile', color: 'var(--danger-color)' };
 }
