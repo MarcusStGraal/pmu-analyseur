@@ -182,6 +182,7 @@ export function renderApp(state) {
                  displayCourseInfo(selectedCourse, state.currentRaceDifficulty);
             }
         }
+    }
 
     if (state.participantsData) {
         displayNonPartantsInfo(state.participantsData);
