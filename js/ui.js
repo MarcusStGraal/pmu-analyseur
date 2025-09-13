@@ -48,6 +48,10 @@ const DOM = {
     strategieNotes: document.getElementById('strategie-notes')
 };
 
+if (DOM.status) {
+    DOM.status.setAttribute('aria-live', 'polite');
+}
+
 function updateTabTitles(state) {
     const { selectedReunionNum, selectedCourseNum, currentRaceDifficulty } = state;
     const color = currentRaceDifficulty ? currentRaceDifficulty.color : 'inherit';
@@ -67,14 +71,21 @@ function updateTabTitles(state) {
             DOM.resultsTitle.style.color = color;
         }
     } else {
-        if (DOM.statsTitle) DOM.statsTitle.textContent = 'Analyse des Partants';
-        if (DOM.filtersTitle) DOM.filtersTitle.textContent = 'Mes Filtres';
-        if (DOM.resultsTitle) DOM.resultsTitle.textContent = 'Mes Tickets';
+        if (DOM.statsTitle) {
+            DOM.statsTitle.textContent = 'Analyse des Partants';
+            DOM.statsTitle.style.color = 'inherit';
+        }
+        if (DOM.filtersTitle) {
+            DOM.filtersTitle.textContent = 'Mes Filtres';
+            DOM.filtersTitle.style.color = 'inherit';
+        }
+        if (DOM.resultsTitle) {
+            DOM.resultsTitle.textContent = 'Mes Tickets';
+            DOM.resultsTitle.style.color = 'inherit';
+        }
     }
 }
-if (DOM.status) {
-    DOM.status.setAttribute('aria-live', 'polite');
-}
+
 
 export function setupNavigation() {
     document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -93,7 +104,6 @@ export function switchTab(tabId) {
 }
 
 export const EXPLORER_CRITERIA = [
-    // Critères communs
     { key: 'cote', label: 'Cote', unit: '/1', format: 'float', defaultAsc: true, rankable: true },
     { key: 'indiceForme', label: 'Ind. Forme', unit: '', format: 'float', defaultAsc: true, rankable: true },
     { key: 'gainsParCourse', label: 'Gains/Crs', unit: '€', format: 'currency', defaultAsc: false, rankable: true },
@@ -340,40 +350,20 @@ export function displayReunionInfo(reunion) {
 }
 
 export function displayCourseInfo(course, difficulty) {
-let content = '';
-if (course && course.conditions) {
-content += <strong>Conditions :</strong> ${escapeHTML(course.conditions)};
-}
-if (difficulty) {
-content += `<br><strong>Indice Difficulté :</strong> <span style="color:${difficulty.color}; font-weight:bold;">
-d
-i
-f
-f
-i
-c
-u
-l
-t
-y
-.
-s
-c
-o
-r
-e
-/
-100
-(
-difficulty.score/100(
-{difficulty.level})</span>`;
-}
-if (content) {
-    DOM.courseInfoDiv.innerHTML = content;
-    DOM.courseInfoDiv.style.display = 'block';
-} else {
-    DOM.courseInfoDiv.style.display = 'none';
-}
+    let content = '';
+    if (course && course.conditions) {
+        content += `<strong>Conditions :</strong> ${escapeHTML(course.conditions)}`;
+    }
+    if (difficulty) {
+        content += `<br><strong>Indice Difficulté :</strong> <span style="color:${difficulty.color}; font-weight:bold;">${difficulty.score}/100 (${difficulty.level})</span>`;
+    }
+
+    if (content) {
+        DOM.courseInfoDiv.innerHTML = content;
+        DOM.courseInfoDiv.style.display = 'block';
+    } else {
+        DOM.courseInfoDiv.style.display = 'none';
+    }
 }
 
 export function displayNonPartantsInfo(participantsData) {
