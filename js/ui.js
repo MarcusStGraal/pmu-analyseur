@@ -132,11 +132,6 @@ export function renderApp(state) {
 
     updateStatus(state.status.message, state.status.isError);
 
-    if (DOM.filtersStatusMessage) {
-        DOM.filtersStatusMessage.textContent = state.status.message;
-        DOM.filtersStatusMessage.style.color = state.status.isError ? 'var(--danger-color)' : 'var(--text-color-light)';
-    }
-
     if (state.programmeData && state.programmeData.programme) {
         const timeZoneOffset = state.programmeData.programme.timeZoneOffset || 0;
         populateReunionSelect(state.programmeData.programme.reunions, state.selectedReunionNum, timeZoneOffset);
@@ -184,7 +179,7 @@ export function renderApp(state) {
 
     const { combinations, betName, betType, limitReached, showChampReduit } = state.results;
     if (DOM.champReduitToggle) DOM.champReduitToggle.checked = showChampReduit;
-    updateResultsTab(combinations.length, betName, betType, limitReached);
+    updateResultsTab(combinations.length, betName, betType, limitReached, state.selectedReunionNum, state.selectedCourseNum);
     renderCombinationsProgressively(combinations, betType, showChampReduit);
 }
 
@@ -462,7 +457,7 @@ export function updateFunctionsList(functions, grille) {
     DOM.functionsList.innerHTML = functions.map((filter, index) => buildFilterItemHTML(filter, index, columnOptionsHTML, grille)).join('');
 }
 
-export function updateResultsTab(combinationCount, betName, betSize, limitReached = false) {
+export function updateResultsTab(combinationCount, betName, betSize, limitReached = false, reunionNum, courseNum) {
     const hasCombinations = combinationCount > 0;
     if (DOM.resultsPlaceholder) DOM.resultsPlaceholder.style.display = hasCombinations ? 'none' : 'block';
     if (DOM.resultsContent) DOM.resultsContent.style.display = hasCombinations ? 'block' : 'none';
@@ -479,7 +474,11 @@ export function updateResultsTab(combinationCount, betName, betSize, limitReache
     if (!hasCombinations) return;
     
     if (DOM.resultsHeader) {
-        let headerText = `<strong>${combinationCount}</strong> combinaisons trouvées`;
+        let racePrefix = '';
+        if (reunionNum && courseNum) {
+            racePrefix = `<strong>R${reunionNum}C${courseNum}</strong> - `;
+        }
+        let headerText = `${racePrefix}<strong>${combinationCount}</strong> combinaisons trouvées`;
         if (limitReached) {
             headerText += ` (limite atteinte)`;
         }
