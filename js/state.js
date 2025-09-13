@@ -125,9 +125,12 @@ class StateManager {
         let profiles = [];
         if (savedProfilesJSON) {
             try {
-                profiles = JSON.parse(savedProfilesJSON);
+                const parsedProfiles = JSON.parse(savedProfilesJSON);
+                if (Array.isArray(parsedProfiles) && parsedProfiles.length > 0) {
+                    profiles = parsedProfiles;
+                }
             } catch (e) {
-                console.error("Erreur lors du parsing des profils, réinitialisation.", e);
+                console.error("Erreur lors du chargement des profils, réinitialisation.", e);
             }
         }
         if (profiles.length === 0) {
@@ -137,6 +140,7 @@ class StateManager {
                 isDefault: true,
                 criteriaKeys: ['cote', 'dernierePerfNorm', 'ecartDistance', 'nbPlaces_3d', 'meilleurePerfAbsolue_5d', 'poids', 'valeur', 'age', 'sexe', 'gainsCarriere', 'ecartJours', 'reussiteHippo', 'reussiteDistance']
             }];
+            localStorage.setItem('pmuCriteriaProfiles', JSON.stringify(profiles));
         }
         this.setState({ criteriaProfiles: profiles });
     }
@@ -152,7 +156,8 @@ class StateManager {
                 criteriaModal: {
                     selectedProfileId: activeProfile.id,
                     currentName: activeProfile.name,
-                    selectedKeys: Array.from(activeProfile.criteriaKeys) // On utilise un Array
+                    // On s'assure que c'est bien un tableau, mais sans conversion inutile si c'en est déjà un
+                    selectedKeys: Array.isArray(activeProfile.criteriaKeys) ? [...activeProfile.criteriaKeys] : []
                 }
             }
         });
@@ -243,21 +248,27 @@ class StateManager {
     }
     async initialize() {
         await this.loadFilterSets();
-        this.loadCriteriaProfiles();
+        this.loadCriteriaProfiles(); 
+
         const savedStateJSON = localStorage.getItem('pmuAppState');
         let stateToLoad = null;
         let dateToLoad = new Date();
+        
         let finalProfileId = this.getState().criteriaProfiles[0]?.id || null;
+
         if (savedStateJSON) {
             const savedState = JSON.parse(savedStateJSON);
             stateToLoad = savedState;
+
             if (savedState.date) {
                 dateToLoad = new Date(savedState.date + 'T00:00:00');
             }
+
             const savedProfileId = savedState.activeCriteriaProfileId;
             if (this.getState().criteriaProfiles.some(p => p.id === savedProfileId)) {
                 finalProfileId = savedProfileId;
             }
+
             this.setState({
                 filters: savedState.filters || [],
                 results: {
@@ -268,9 +279,12 @@ class StateManager {
                 isDailyAnalysisEnabled: savedState.isDailyAnalysisEnabled === true
             });
         }
+        
         this.setState({ activeCriteriaProfileId: finalProfileId });
+
         const checkbox = document.getElementById('toggleDailyAnalysis');
         if (checkbox) checkbox.checked = this._state.isDailyAnalysisEnabled;
+        
         const dateStr = dateToLoad.toISOString().split('T')[0];
         document.getElementById('dateInput').value = dateStr;
         await this.changeDate(dateStr, stateToLoad);

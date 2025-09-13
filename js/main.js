@@ -241,7 +241,7 @@ function connectEventListeners() {
             if (e.target.closest('#criteria-profile-list') && e.target.type === 'checkbox') {
                 const newSelectedKeys = Array.from(
                     criteriaModal.querySelectorAll('#criteria-profile-list input[type="checkbox"]:checked')
-                ).map(checkbox => checkbox.dataset.criteriaKey);
+                ).map(checkbox => checkbox.dataset.criteriaKey).filter(Boolean); // On filtre les valeurs null/undefined
                 stateManager.updateCriteriaModal({ selectedKeys: newSelectedKeys });
             }
         });
