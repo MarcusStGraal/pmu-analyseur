@@ -486,14 +486,17 @@ export function renderStatsExplorer(grille, activeProfile, criteriaKey, sortStat
 export function activateFiltersTab(isActive, betType) {
     if (DOM.filtersPlaceholder) DOM.filtersPlaceholder.style.display = isActive ? 'none' : 'block';
     if (DOM.filtersContent) DOM.filtersContent.style.display = isActive ? 'block' : 'none';
+    
+    if (!isActive) return;
 
     const isSimpleBet = betType === 1;
 
-    if(DOM.standardFiltersUI) DOM.standardFiltersUI.style.display = isSimpleBet ? 'none' : '';
-    if(DOM.distributionUI) DOM.distributionUI.style.display = isSimpleBet ? '' : 'none';
-    if(DOM.filtersActionFooter) renderFiltersFooter(isSimpleBet);
-
-    if (DOM.genererButton) DOM.genererButton.disabled = !isActive;
+    if(DOM.standardFiltersUI) DOM.standardFiltersUI.style.display = isSimpleBet ? 'none' : 'block';
+    if(DOM.distributionUI) DOM.distributionUI.style.display = isSimpleBet ? 'block' : 'none';
+    
+    // Le bouton 'générer' n'existe que dans le footer des filtres standards maintenant
+    const genererButton = document.getElementById('generer');
+    if (genererButton) genererButton.disabled = !isActive;
 }
 
 export function updateFunctionsList(functions, grille) {
@@ -860,12 +863,13 @@ function renderFiltersFooter(isSimpleBet, distState) {
 
 function renderBettingDistribution(state) {
     const { participantsData, bettingDistribution, results } = state;
-    const { selectedHorses, results: distResults } = bettingDistribution;
     
     activateFiltersTab(!!participantsData, results.betType);
+    renderFiltersFooter(results.betType === 1, bettingDistribution);
     
     if (results.betType !== 1) return;
 
+    const { selectedHorses, results: distResults } = bettingDistribution;
     const horseListContainer = document.getElementById('distribution-horse-list');
     const resultsContainer = document.getElementById('distribution-results');
     if (!horseListContainer || !resultsContainer) return;
@@ -875,39 +879,47 @@ function renderBettingDistribution(state) {
         return;
     }
 
-    renderFiltersFooter(true, bettingDistribution);
-    
     const numIndex = Object.fromEntries(participantsData.num.map((n, i) => [n, i]));
     
-    horseListContainer.innerHTML = participantsData.num
-        .map((num, i) => {
-            if (participantsData.statut[i] !== 'PARTANT') return '';
-            const isChecked = selectedHorses.includes(num);
-            const cote = participantsData.cote[i] || 'N/A';
-            return `
-                <label class="distribution-horse-item">
-                    <input type="checkbox" data-num="${num}" ${isChecked ? 'checked' : ''}>
-                    <span class="horse-num">${num}</span>
-                    <span class="horse-name">${escapeHTML(participantsData.nom[i])}</span>
-                    <span class="horse-cote">${cote} /1</span>
-                </label>
-            `;
-        })
-        .join('');
+    const partants = participantsData.num
+        .map((num, i) => ({
+            num: num,
+            nom: participantsData.nom[i],
+            statut: participantsData.statut[i],
+            cote: participantsData.cote[i]
+        }))
+        .filter(p => p.statut === 'PARTANT')
+        .sort((a, b) => (a.cote || 999) - (b.cote || 999));
+
+    horseListContainer.innerHTML = partants.map(p => {
+        const isChecked = selectedHorses.includes(p.num);
+        const cote = p.cote || 'N/A';
+        return `
+            <label class="distribution-horse-item">
+                <input type="checkbox" data-num="${p.num}" ${isChecked ? 'checked' : ''}>
+                <span class="horse-num">${p.num}</span>
+                <span class="horse-name">${escapeHTML(p.nom)}</span>
+                <span class="horse-cote">${cote} /1</span>
+            </label>
+        `;
+    }).join('');
         
     if (distResults) {
         if(distResults.error) {
             resultsContainer.innerHTML = `<p class="info-box non-partant">${escapeHTML(distResults.error)}</p>`;
         } else {
-            const resultHTML = distResults.mises.map((m, index) => {
+            const resultHTML = distResults.mises
+              .sort((a, b) => (a.cote || 999) - (b.cote || 999))
+              .map((m, index) => {
                 const nom = participantsData.nom[numIndex[m.num]];
+                const gainsNet = (m.mise * m.cote) - distResults.totalMise;
                 return `
                     <tr>
                         <td><strong>${m.num}</strong> ${escapeHTML(nom)}</td>
                         <td>${m.mise.toFixed(2)} €</td>
-                        <td>${distResults.gainsBruts[index].toFixed(2)} €</td>
-                        <td style="color: ${distResults.gainsNets[index] >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
-                            ${distResults.gainsNets[index].toFixed(2)} €
+                        <td>${(m.mise * m.cote).toFixed(2)} €</td>
+                        <td style="color: ${gainsNet >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
+                            ${gainsNet.toFixed(2)} €
                         </td>
                     </tr>
                 `;
