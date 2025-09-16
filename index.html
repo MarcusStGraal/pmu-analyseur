@@ -82,53 +82,52 @@
         </div>
 
         <div id="tab-filters" class="tab-content">
-    <div class="card">
-        <h2 id="filters-title">Mes Filtres</h2>
-        <p class="placeholder-text" id="filters-placeholder">Sélectionnez une course pour activer les filtres.</p>
-        <div id="filters-content" style="display:none;">
-            
-            <div class="filters-header">
-    <!-- Chaque élément est maintenant dans son propre form-group pour un style cohérent -->
-    <div class="form-group">
-        <select id="nbCombinaison">
-            <option value="2">Couplé</option>
-            <option value="3" selected>Tiercé</option>
-            <option value="4">Quarté</option>
-            <option value="5">Quinté</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <select id="fonction">
-            <option value="">Ajouter un filtre...</option>
-            <optgroup label="Filtres numériques">
-                <option value="VECT">VECT (Numéros)</option>
-                <option value="SOM">SOM (Somme)</option>
-                <option value="GAP">GAP (Écarts)</option>
-            </optgroup>
-            <optgroup label="Filtres logiques">
-                <option value="KTG">KTG (Groupes)</option>
-                <option value="ORDER">ORDER (Trier %)</option>
-            </optgroup>
-        </select>
-    </div>
-    <div class="form-group">
-        <input type="number" id="limitInput" value="200" min="10" max="50000" title="Limite de combinaisons">
-    </div>
-    <span id="active-filter-count" class="filter-counter"></span>
-</div>
+            <div class="card">
+                <h2 id="filters-title">Mes Filtres</h2>
+                <p class="placeholder-text" id="filters-placeholder">Sélectionnez une course pour activer les filtres.</p>
+                <div id="filters-content" style="display:none;">
+                    <div id="standard-filters-ui">
+                        <div class="filters-header">
+                            <div class="form-group">
+                                <select id="nbCombinaison">
+                                    <option value="1">Simple</option>
+                                    <option value="2">Couplé</option>
+                                    <option value="3" selected>Tiercé</option>
+                                    <option value="4">Quarté</option>
+                                    <option value="5">Quinté</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <select id="fonction">
+                                    <option value="">Ajouter un filtre...</option>
+                                    <optgroup label="Filtres numériques">
+                                        <option value="VECT">VECT (Numéros)</option>
+                                        <option value="SOM">SOM (Somme)</option>
+                                        <option value="GAP">GAP (Écarts)</option>
+                                    </optgroup>
+                                    <optgroup label="Filtres logiques">
+                                        <option value="KTG">KTG (Groupes)</option>
+                                        <option value="ORDER">ORDER (Trier %)</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <input type="number" id="limitInput" value="200" min="10" max="50000" title="Limite de combinaisons">
+                            </div>
+                            <span id="active-filter-count" class="filter-counter"></span>
+                        </div>
+                        <div id="functions-list"></div>
+                    </div>
 
-            <div id="functions-list"></div>
-
-        </div>
-    </div>
-<!-- ET PLACÉ DANS CE NOUVEAU PIED DE PAGE FIXE -->
-            <div id="filters-action-footer">
-                <span id="filters-status-message"></span>
-                <button id="generer" style="background-color: var(--success-color);" disabled type="button">
-                    <i class="fas fa-rocket"></i> Lancer la Simplification
-                </button>
+                    <div id="distribution-ui" style="display:none;">
+                        <div id="distribution-horse-list" class="distribution-horse-list"></div>
+                        <div id="distribution-results" class="distribution-results-container"></div>
+                    </div>
+                </div>
             </div>
-</div>
+            <div id="filters-action-footer">
+            </div>
+        </div>
 
         <div id="tab-results" class="tab-content">
             <div class="card">
@@ -147,7 +146,6 @@
                     </div>
 
                     <div id="results-display-area" class="results-display-area grid-view">
-                        <!-- Les combinaisons seront injectées ici par le JS -->
                     </div>
                 </div>
             </div>
@@ -166,7 +164,6 @@
                     </div>
 
                     <div id="filter-set-manager">
-                        <!-- Le gestionnaire de filtres sera injecté ici par JS -->
                     </div>
 
                     <div class="strategie-actions">
@@ -220,7 +217,6 @@
             </div>
 
             <div id="criteria-profile-list" class="criteria-list-container">
-                <!-- La liste des critères sera injectée ici par JS -->
             </div>
 
             <div class="modal-actions profile-actions">

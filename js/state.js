@@ -1,3 +1,4 @@
+// js/state.js
 import { switchTab } from './ui.js';
 import { handleLoadProgram, fetchParticipants, fetchDetailedPerformances } from './api.js';
 import * as cache from './cache.js';
@@ -20,6 +21,12 @@ const initialState = {
     selectedFilterSetId: null,
     criteriaProfiles: [],
     activeCriteriaProfileId: null,
+    bettingDistribution: {
+        mode: 'totalBet',
+        value: 10,
+        selectedHorses: [],
+        results: null
+    },
     results: {
         combinations: [],
         betType: 3,
@@ -390,6 +397,7 @@ class StateManager {
             participantsData: null,
             currentRaceDifficulty: null,
             currentRaceNote: '',
+            bettingDistribution: initialState.bettingDistribution,
             ui: { ...this._state.ui, stats: { ...initialState.ui.stats, manualSelection: [] } }
         });
 
@@ -586,6 +594,91 @@ class StateManager {
     }
     toggleChampReduit(isChecked) {
         this.setState({ results: { ...this._state.results, showChampReduit: isChecked } });
+    }
+
+    updateBettingDistribution(newState) {
+        this.setState({
+            bettingDistribution: {
+                ...this._state.bettingDistribution,
+                ...newState,
+                results: null
+            }
+        });
+    }
+
+    calculateBettingDistribution() {
+        const { participantsData, bettingDistribution } = this._state;
+        const { mode, value, selectedHorses } = bettingDistribution;
+
+        if (!participantsData || selectedHorses.length === 0) {
+            this.setState({ status: { message: "Veuillez sélectionner au moins un cheval.", isError: true } });
+            return;
+        }
+        
+        const numIndex = Object.fromEntries(participantsData.num.map((n, i) => [n, i]));
+
+        const selection = selectedHorses
+            .map(num => ({
+                num,
+                cote: participantsData.cote[numIndex[num]]
+            }))
+            .filter(h => h.cote && h.cote > 1 && participantsData.statut[numIndex[h.num]] === 'PARTANT');
+
+        if (selection.length === 0) {
+            this.setState({ status: { message: "Aucun cheval sélectionné avec une cote valide.", isError: true } });
+            return;
+        }
+
+        let mises = [];
+        let totalMise = 0;
+        let error = null;
+
+        if (mode === 'totalBet') {
+            const miseTotale = value;
+            const inverseSum = selection.reduce((sum, h) => sum + (1 / h.cote), 0);
+            if (inverseSum > 0) {
+                mises = selection.map(h => ({ num: h.num, cote: h.cote, mise: parseFloat(((miseTotale * (1 / h.cote)) / inverseSum).toFixed(2)) }));
+                totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
+            }
+        } else { // 'targetProfitSimple' or 'targetProfitExact'
+            const beneficeVise = value;
+            if (mode === 'targetProfitSimple') {
+                mises = selection.map(h => {
+                    const mise = Math.ceil(beneficeVise / (h.cote - 1));
+                    return { num: h.num, cote: h.cote, mise };
+                });
+            } else { // 'targetProfitExact'
+                const sumInverseCotes = selection.reduce((sum, h) => sum + (1 / h.cote), 0);
+                if (sumInverseCotes >= 1) {
+                    error = "Impossible de garantir un bénéfice avec ces cotes (somme des inverses >= 1).";
+                } else {
+                    const gainCible = beneficeVise / (1 - sumInverseCotes);
+                    mises = selection.map(h => {
+                        const mise = Math.ceil(gainCible / h.cote);
+                        return { num: h.num, cote: h.cote, mise };
+                    });
+                }
+            }
+            if(!error) totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
+        }
+
+        if (error) {
+             this.setState({
+                status: { message: error, isError: true },
+                bettingDistribution: { ...bettingDistribution, results: { error } }
+             });
+        } else {
+            const results = {
+                mises,
+                totalMise,
+                gainsBruts: mises.map(m => parseFloat((m.mise * m.cote).toFixed(2))),
+                gainsNets: mises.map(m => parseFloat(((m.mise * m.cote) - totalMise).toFixed(2)))
+            };
+            this.setState({
+                status: { message: `Calcul de répartition terminé. Mise totale: ${totalMise.toFixed(2)}€` },
+                bettingDistribution: { ...bettingDistribution, results }
+            });
+        }
     }
 }
 export const stateManager = new StateManager();

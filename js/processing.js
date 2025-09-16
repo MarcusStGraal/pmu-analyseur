@@ -171,10 +171,19 @@ export function createGrilleFromParticipants(participantsJson, performancesJson,
             grille.musique.push(p.musique || '-');
 	    grille.def.push((p.deferre || '').includes('DEFERRE') ? 1 : 0);
             grille.driverChange.push(p.driverChange ? 1 : 0);
-            grille.oeilleres.push(p.oeilleres?.code || 'NON');
+            
+            let oeilleresValue = 'NON';
+            if (p.oeilleres) {
+                if (typeof p.oeilleres === 'string') {
+                    oeilleresValue = p.oeilleres;
+                } else if (p.oeilleres.libelleCourt) {
+                    oeilleresValue = p.oeilleres.libelleCourt;
+                }
+            }
+            grille.oeilleres.push(oeilleresValue);
+            
             grille.gainsCarriere.push(p.gainsParticipant?.gainsCarriere || 0);            
-            grille.gainsAnneeEnCours.push(p.gainsParticipant?.gainsAnneeEnCours || 0);
-            grille.gainsAnneePrecedente.push(p.gainsParticipant?.gainsAnneePrecedente || 0);
+            grille.gainsAnneeEnCours.push(p.gainsParticipant?.gainsAnneeEnCours || 0);            grille.gainsAnneePrecedente.push(p.gainsParticipant?.gainsAnneePrecedente || 0);
             grille.gainsVictoires.push(p.gainsParticipant?.gainsVictoires || 0);
             grille.gainsPlace.push(p.gainsParticipant?.gainsPlace || 0);
             grille.lettre_1.push(p.nom?.charAt(0).toUpperCase() || '');

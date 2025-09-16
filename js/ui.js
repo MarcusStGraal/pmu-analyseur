@@ -1,3 +1,4 @@
+// js/ui.js
 import { factorizeCombinations, getUniqueValuesFromGrille } from './processing.js';
 
 function escapeHTML(unsafe) {
@@ -45,7 +46,11 @@ const DOM = {
     strategiePlaceholder: document.getElementById('strategie-placeholder'),
     strategieContent: document.getElementById('strategie-content'),
     strategieRaceSummary: document.getElementById('strategie-race-summary'),
-    strategieNotes: document.getElementById('strategie-notes')
+    strategieNotes: document.getElementById('strategie-notes'),
+    standardFiltersUI: document.getElementById('standard-filters-ui'),
+    distributionUI: document.getElementById('distribution-ui'),
+    filtersActionFooter: document.getElementById('filters-action-footer'),
+    nbCombinaison: document.getElementById('nbCombinaison')
 };
 
 if (DOM.status) {
@@ -195,10 +200,11 @@ export function renderApp(state) {
 
         renderStatsExplorer(state.participantsData, activeProfile, state.ui.stats.currentCriteria, state.ui.stats.sortState, state.ui.stats.manualSelection, state.participantsData.arrivalRanks, state.ui.stats.displayMode, state.isDailyAnalysisEnabled);
         updateSendSelectionButton(state.ui.stats.manualSelection);
-        activateFiltersTab(true);
+        activateFiltersTab(true, state.results.betType);
+        renderBettingDistribution(state);
     } else {
         renderStatsExplorer(null);
-        activateFiltersTab(false);
+        activateFiltersTab(false, state.results.betType);
     }
 
     updateFunctionsList(state.filters, state.participantsData);
@@ -216,6 +222,8 @@ export function renderApp(state) {
 
     const { combinations, betName, betType, limitReached, showChampReduit } = state.results;
     if (DOM.champReduitToggle) DOM.champReduitToggle.checked = showChampReduit;
+    if (DOM.nbCombinaison) DOM.nbCombinaison.value = betType;
+
     updateResultsTab(combinations.length, betName, betType, limitReached);
     renderCombinationsProgressively(combinations, betType, showChampReduit);
 }
@@ -400,7 +408,7 @@ export function resetCourseSelection() {
     if (DOM.reunionInfoDiv) DOM.reunionInfoDiv.style.display = 'none';
     if (DOM.courseInfoDiv) DOM.courseInfoDiv.style.display = 'none';
     if (DOM.nonPartantsInfoDiv) DOM.nonPartantsInfoDiv.style.display = 'none';
-    activateFiltersTab(false);
+    activateFiltersTab(false, 3);
     renderStatsExplorer(null, null, 'cote', { by: 'num' }, [], null);
 }
 
@@ -440,11 +448,11 @@ export function renderStatsExplorer(grille, activeProfile, criteriaKey, sortStat
 
     populateCriteriaSelector(criteriaKey, visibleCriteria);
 
-    const participantsArray = grille.num.map((num, index) => {
-        const participant = { index };
+    const participantsArray = grille.num.map((index, num) => {
+        const participant = { index: num };
         for (const key in grille) {
             if (grille.hasOwnProperty(key)) {
-                participant[key] = grille[key][index];
+                participant[key] = grille[key][num];
             }
         }
         return participant;
@@ -475,9 +483,16 @@ export function renderStatsExplorer(grille, activeProfile, criteriaKey, sortStat
     }
 }
 
-export function activateFiltersTab(isActive) {
+export function activateFiltersTab(isActive, betType) {
     if (DOM.filtersPlaceholder) DOM.filtersPlaceholder.style.display = isActive ? 'none' : 'block';
     if (DOM.filtersContent) DOM.filtersContent.style.display = isActive ? 'block' : 'none';
+
+    const isSimpleBet = betType === 1;
+
+    if(DOM.standardFiltersUI) DOM.standardFiltersUI.style.display = isSimpleBet ? 'none' : '';
+    if(DOM.distributionUI) DOM.distributionUI.style.display = isSimpleBet ? '' : 'none';
+    if(DOM.filtersActionFooter) renderFiltersFooter(isSimpleBet);
+
     if (DOM.genererButton) DOM.genererButton.disabled = !isActive;
 }
 
@@ -807,5 +822,115 @@ function renderStrategieTab(state) {
                 </button>
             </div>
         `;
+    }
+}
+
+function renderFiltersFooter(isSimpleBet, distState) {
+    if (!DOM.filtersActionFooter) return;
+    
+    let content = '';
+    if (isSimpleBet && distState) {
+        const { mode, value } = distState;
+        const isTotalBet = mode === 'totalBet';
+        content = `
+            <div class="footer-form-group">
+                <select id="distribution-mode-select">
+                    <option value="totalBet" ${isTotalBet ? 'selected' : ''}>Répartir mise totale</option>
+                    <option value="targetProfitSimple" ${mode === 'targetProfitSimple' ? 'selected' : ''}>Viser bénéfice (Simple)</option>
+                    <option value="targetProfitExact" ${mode === 'targetProfitExact' ? 'selected' : ''}>Viser bénéfice (Exact)</option>
+                </select>
+            </div>
+            <div class="footer-form-group">
+                <input type="number" id="distribution-value-input" value="${value}" min="1">
+            </div>
+            <button id="calculate-distribution-btn" type="button" style="background-color: var(--success-color);">
+                <i class="fas fa-calculator"></i> Calculer
+            </button>
+        `;
+    } else {
+        content = `
+            <span id="filters-status-message"></span>
+            <button id="generer" style="background-color: var(--success-color);" disabled type="button">
+                <i class="fas fa-rocket"></i> Lancer la Simplification
+            </button>
+        `;
+    }
+    DOM.filtersActionFooter.innerHTML = content;
+}
+
+function renderBettingDistribution(state) {
+    const { participantsData, bettingDistribution, results } = state;
+    const { selectedHorses, results: distResults } = bettingDistribution;
+    
+    activateFiltersTab(!!participantsData, results.betType);
+    
+    if (results.betType !== 1) return;
+
+    const horseListContainer = document.getElementById('distribution-horse-list');
+    const resultsContainer = document.getElementById('distribution-results');
+    if (!horseListContainer || !resultsContainer) return;
+    
+    if (!participantsData) {
+        horseListContainer.innerHTML = '<p class="placeholder-text">Sélectionnez une course pour voir les partants.</p>';
+        return;
+    }
+
+    renderFiltersFooter(true, bettingDistribution);
+    
+    const numIndex = Object.fromEntries(participantsData.num.map((n, i) => [n, i]));
+    
+    horseListContainer.innerHTML = participantsData.num
+        .map((num, i) => {
+            if (participantsData.statut[i] !== 'PARTANT') return '';
+            const isChecked = selectedHorses.includes(num);
+            const cote = participantsData.cote[i] || 'N/A';
+            return `
+                <label class="distribution-horse-item">
+                    <input type="checkbox" data-num="${num}" ${isChecked ? 'checked' : ''}>
+                    <span class="horse-num">${num}</span>
+                    <span class="horse-name">${escapeHTML(participantsData.nom[i])}</span>
+                    <span class="horse-cote">${cote} /1</span>
+                </label>
+            `;
+        })
+        .join('');
+        
+    if (distResults) {
+        if(distResults.error) {
+            resultsContainer.innerHTML = `<p class="info-box non-partant">${escapeHTML(distResults.error)}</p>`;
+        } else {
+            const resultHTML = distResults.mises.map((m, index) => {
+                const nom = participantsData.nom[numIndex[m.num]];
+                return `
+                    <tr>
+                        <td><strong>${m.num}</strong> ${escapeHTML(nom)}</td>
+                        <td>${m.mise.toFixed(2)} €</td>
+                        <td>${distResults.gainsBruts[index].toFixed(2)} €</td>
+                        <td style="color: ${distResults.gainsNets[index] >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
+                            ${distResults.gainsNets[index].toFixed(2)} €
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            resultsContainer.innerHTML = `
+                <div class="distribution-results-summary">
+                    <strong>Mise Totale : ${distResults.totalMise.toFixed(2)} €</strong>
+                </div>
+                <table class="distribution-results-table">
+                    <thead>
+                        <tr>
+                            <th>Cheval</th>
+                            <th>Mise</th>
+                            <th>Gain Brut</th>
+                            <th>Gain Net</th>
+                        </tr>
+                    </thead>
+                    <tbody>${resultHTML}</tbody>
+                </table>
+            `;
+        }
+    } else {
+        resultsContainer.innerHTML = '';
     }
 }

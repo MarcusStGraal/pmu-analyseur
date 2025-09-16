@@ -1,3 +1,4 @@
+// js/main.js
 import { stateManager } from './state.js';
 import * as cache from './cache.js';
 import { renderApp, setupNavigation, showFilterActionModal, hideFilterActionModal, getCurrentModalNumbers, getCurrentModalGroupName, EXPLORER_CRITERIA, switchTab } from './ui.js';
@@ -155,19 +156,58 @@ function connectEventListeners() {
         stateManager.addFilter(newFilter);
         e.target.value = '';
     });
-    addListener('generer', 'click', () => {
-        const betSelect = document.getElementById('nbCombinaison');
-        const limitInput = document.getElementById('limitInput');
-        if (betSelect && limitInput) {
-            const betType = parseInt(betSelect.value, 10);
-            const betName = betSelect.options[betSelect.selectedIndex].text;
-            const limit = parseInt(limitInput.value, 10) || 10000;
-            stateManager.runCalculation(betType, betName, limit);
+    
+    document.body.addEventListener('click', e => {
+        if (e.target.id === 'generer') {
+            const betSelect = document.getElementById('nbCombinaison');
+            const limitInput = document.getElementById('limitInput');
+            if (betSelect && limitInput) {
+                const betType = parseInt(betSelect.value, 10);
+                const betName = betSelect.options[betSelect.selectedIndex].text;
+                const limit = parseInt(limitInput.value, 10) || 10000;
+                stateManager.runCalculation(betType, betName, limit);
+            }
+        }
+        if (e.target.id === 'calculate-distribution-btn') {
+            stateManager.calculateBettingDistribution();
         }
     });
+
+    addListener('nbCombinaison', 'change', e => {
+        const betSelect = e.target;
+        const betType = parseInt(betSelect.value, 10);
+        const betName = betSelect.options[betSelect.selectedIndex].text;
+        stateManager.setState({ results: { ...stateManager.getState().results, betType, betName, combinations: [] } });
+    });
+
+    const filtersContent = document.getElementById('filters-content');
+    if (filtersContent) {
+        filtersContent.addEventListener('change', e => {
+            if (e.target.closest('#distribution-horse-list')) {
+                const selectedHorses = Array.from(
+                    document.querySelectorAll('#distribution-horse-list input:checked')
+                ).map(cb => parseInt(cb.dataset.num, 10));
+                stateManager.updateBettingDistribution({ selectedHorses });
+            }
+        });
+    }
+
+    const filtersFooter = document.getElementById('filters-action-footer');
+    if (filtersFooter) {
+        filtersFooter.addEventListener('change', e => {
+            if (e.target.id === 'distribution-mode-select') {
+                stateManager.updateBettingDistribution({ mode: e.target.value });
+            }
+        });
+        filtersFooter.addEventListener('input', e => {
+             if (e.target.id === 'distribution-value-input') {
+                stateManager.updateBettingDistribution({ value: parseFloat(e.target.value) || 0 });
+            }
+        });
+    }
+
     const functionsList = document.getElementById('functions-list');
     if (functionsList) {
-        // Pour les changements instantanés (menus déroulants, cases à cocher)
         functionsList.addEventListener('input', e => {
             const target = e.target;
             if (target.tagName !== 'SELECT' && target.type !== 'checkbox') return;
@@ -180,7 +220,6 @@ function connectEventListeners() {
             stateManager.updateFilter(index, field, value);
         });
 
-        // Pour les champs de texte et numériques, on attend que l'utilisateur quitte le champ
         functionsList.addEventListener('change', e => {
             const target = e.target;
             if (target.tagName !== 'INPUT' || target.type === 'checkbox') return;
