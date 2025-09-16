@@ -861,6 +861,14 @@ function renderFiltersFooter(isSimpleBet, distState) {
     DOM.filtersActionFooter.innerHTML = content;
 }
 
+function formatCurrency(value) {
+    const roundedValue = Math.round(value * 100) / 100;
+    if (roundedValue % 1 === 0) {
+        return `${roundedValue} €`;
+    }
+    return `${roundedValue.toFixed(2).replace('.', ',')} €`;
+}
+
 function renderBettingDistribution(state) {
     const { participantsData, bettingDistribution, results } = state;
     
@@ -912,14 +920,15 @@ function renderBettingDistribution(state) {
               .sort((a, b) => (a.cote || 999) - (b.cote || 999))
               .map((m, index) => {
                 const nom = participantsData.nom[numIndex[m.num]];
-                const gainsNet = (m.mise * m.cote) - distResults.totalMise;
+                const gainBrut = m.mise * m.cote;
+                const gainsNet = gainBrut - distResults.totalMise;
                 return `
                     <tr>
                         <td><strong>${m.num}</strong> ${escapeHTML(nom)}</td>
-                        <td>${m.mise.toFixed(2)} €</td>
-                        <td>${(m.mise * m.cote).toFixed(2)} €</td>
+                        <td>${formatCurrency(m.mise)}</td>
+                        <td>${formatCurrency(gainBrut)}</td>
                         <td style="color: ${gainsNet >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
-                            ${gainsNet.toFixed(2)} €
+                            ${formatCurrency(gainsNet)}
                         </td>
                     </tr>
                 `;
@@ -927,7 +936,7 @@ function renderBettingDistribution(state) {
 
             resultsContainer.innerHTML = `
                 <div class="distribution-results-summary">
-                    <strong>Mise Totale : ${distResults.totalMise.toFixed(2)} €</strong>
+                    <strong>Mise Totale : ${formatCurrency(distResults.totalMise)}</strong>
                 </div>
                 <table class="distribution-results-table">
                     <thead>

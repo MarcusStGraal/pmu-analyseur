@@ -680,8 +680,7 @@ if (mode === 'totalBet') {
             }
             if(!error) totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
         }
-
-        if (error) {
+if (error) {
              this.setState({
                 status: { message: error, isError: true },
                 bettingDistribution: { ...bettingDistribution, results: { error } }
@@ -690,14 +689,12 @@ if (mode === 'totalBet') {
             const results = {
                 mises,
                 totalMise,
-                gainsBruts: mises.map(m => parseFloat((m.mise * m.cote).toFixed(2))),
-                gainsNets: mises.map(m => parseFloat(((m.mise * m.cote) - totalMise).toFixed(2)))
+                gainsBruts: mises.map(m => m.mise * m.cote),
+                gainsNets: mises.map(m => (m.mise * m.cote) - totalMise)
             };
             this.setState({
-                status: { message: `Calcul de répartition terminé. Mise totale: ${totalMise.toFixed(2)}€` },
+                status: { message: `Calcul de répartition terminé. Mise totale: ${results.totalMise}€` },
                 bettingDistribution: { ...bettingDistribution, results }
             });
         }
-    }
-}
 export const stateManager = new StateManager();
