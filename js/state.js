@@ -633,11 +633,30 @@ class StateManager {
         let totalMise = 0;
         let error = null;
 
-        if (mode === 'totalBet') {
-            const miseTotale = value;
+if (mode === 'totalBet') {
+            const miseTotale = Math.floor(value);
             const inverseSum = selection.reduce((sum, h) => sum + (1 / h.cote), 0);
             if (inverseSum > 0) {
-                mises = selection.map(h => ({ num: h.num, cote: h.cote, mise: parseFloat(((miseTotale * (1 / h.cote)) / inverseSum).toFixed(2)) }));
+                let betsWithFraction = selection.map(h => {
+                    const rawMise = (miseTotale * (1 / h.cote)) / inverseSum;
+                    return {
+                        num: h.num,
+                        cote: h.cote,
+                        mise: Math.floor(rawMise),
+                        fraction: rawMise - Math.floor(rawMise)
+                    };
+                });
+
+                let currentTotal = betsWithFraction.reduce((sum, b) => sum + b.mise, 0);
+                let remainder = miseTotale - currentTotal;
+
+                betsWithFraction.sort((a, b) => b.fraction - a.fraction);
+
+                for (let i = 0; i < remainder; i++) {
+                    betsWithFraction[i].mise += 1;
+                }
+                
+                mises = betsWithFraction.map(({num, cote, mise}) => ({num, cote, mise}));
                 totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
             }
         } else { // 'targetProfitSimple' or 'targetProfitExact'
