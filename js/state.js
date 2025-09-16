@@ -680,7 +680,8 @@ if (mode === 'totalBet') {
             }
             if(!error) totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
         }
-if (error) {
+
+        if (error) {
              this.setState({
                 status: { message: error, isError: true },
                 bettingDistribution: { ...bettingDistribution, results: { error } }
@@ -697,4 +698,6 @@ if (error) {
                 bettingDistribution: { ...bettingDistribution, results }
             });
         }
+    }
+}
 export const stateManager = new StateManager();
