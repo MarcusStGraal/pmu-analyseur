@@ -1,0 +1,134 @@
+#!/bin/bash
+# deploy-and-verify.sh - Script de déploiement avec vérifications
+
+set -e  # Arrêter en cas d'erreur
+
+SERVICE_URL="https://pmu-analyseur-new.onrender.com"
+TIMEOUT=300  # 5 minutes timeout
+RETRY_DELAY=10
+
+echo "🚀 Démarrage du processus de déploiement..."
+
+# Fonction pour vérifier la santé du service
+check_health() {
+    local url=$1
+    echo "🔍 Vérification de $url..."
+    
+    response=$(curl -s -w "%{http_code}" -o /dev/null "$url/health" --max-time 30) || return 1
+    
+    if [ "$response" = "200" ]; then
+        echo "✅ Service accessible"
+        return 0
+    else
+        echo "❌ Service non accessible (HTTP $response)"
+        return 1
+    fi
+}
+
+# Fonction pour réveiller le service
+wake_service() {
+    echo "⏰ Réveil du service..."
+    response=$(curl -s -w "%{http_code}" -o /dev/null "$SERVICE_URL/wake" --max-time 30) || return 1
+    
+    if [ "$response" = "200" ]; then
+        echo "✅ Service réveillé"
+        return 0
+    else
+        echo "❌ Échec du réveil (HTTP $response)"
+        return 1
+    fi
+}
+
+# Fonction pour tester la fonctionnalité de prédiction
+test_prediction() {
+    echo "🧠 Test de la prédiction..."
+    
+    payload='{"strategie":3,"cotes":[2.5,4.1,6.0],"indices_forme":[5.5,6.2,7.1],"gains_par_course":[1200,800,600]}'
+    
+    response=$(curl -s -X POST "$SERVICE_URL/predict-dutching" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        --max-time 45)
+    
+    if echo "$response" | grep -q "gainNet"; then
+        echo "✅ Test de prédiction réussi"
+        echo "📊 Réponse: $(echo "$response" | jq -r '.decision // "Format inattendu"' 2>/dev/null || echo "Format inattendu")"
+        return 0
+    else
+        echo "❌ Test de prédiction échoué"
+        echo "Response: $response"
+        return 1
+    fi
+}
+
+# Fonction pour vérifier les métriques
+check_metrics() {
+    echo "📊 Vérification des métriques..."
+    
+    response=$(curl -s "$SERVICE_URL/metrics" --max-time 30)
+    
+    if echo "$response" | grep -q "timestamp"; then
+        echo "✅ Métriques accessibles"
+        uptime=$(echo "$response" | jq -r '.uptime // 0' 2>/dev/null || echo "0")
+        echo "⏱️ Uptime: ${uptime}s"
+        return 0
+    else
+        echo "❌ Métriques non accessibles"
+        return 1
+    fi
+}
+
+# Boucle principale de vérification
+main() {
+    local start_time=$(date +%s)
+    local max_time=$((start_time + TIMEOUT))
+    
+    echo "🎯 URL cible: $SERVICE_URL"
+    echo "⏰ Timeout: ${TIMEOUT}s"
+    
+    # Première tentative de réveil
+    wake_service || echo "⚠️ Réveil initial échoué, continuation..."
+    
+    while [ $(date +%s) -lt $max_time ]; do
+        echo -e "\n--- Tentative $(date '+%H:%M:%S') ---"
+        
+        # Vérifier la santé
+        if check_health "$SERVICE_URL"; then
+            echo "✅ Service opérationnel"
+            
+            # Tester les fonctionnalités
+            if test_prediction && check_metrics; then
+                echo -e "\n🎉 DÉPLOIEMENT RÉUSSI ! 🎉"
+                echo "📈 Service entièrement fonctionnel"
+                
+                # Statistiques finales
+                local total_time=$(($(date +%s) - start_time))
+                echo "⏱️ Temps total: ${total_time}s"
+                
+                exit 0
+            else
+                echo "⚠️ Service accessible mais fonctionnalités partiellement défaillantes"
+            fi
+        else
+            echo "🔄 Service non accessible, réveil..."
+            wake_service || echo "⚠️ Réveil échoué"
+        fi
+        
+        echo "⏳ Attente de ${RETRY_DELAY}s avant nouvelle tentative..."
+        sleep $RETRY_DELAY
+    done
+    
+    echo -e "\n❌ DÉPLOIEMENT ÉCHOUÉ après ${TIMEOUT}s"
+    echo "🔧 Vérifiez les logs sur Render"
+    exit 1
+}
+
+# Gestion des signaux
+trap 'echo "⏹️ Arrêt du script"; exit 1' INT TERM
+
+# Lancement principal
+main
+
+# Usage du script :
+# chmod +x deploy-and-verify.sh
+# ./deploy-and-verify.sh

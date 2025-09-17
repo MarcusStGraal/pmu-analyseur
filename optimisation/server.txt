@@ -1,0 +1,240 @@
+// Ajouts pour server.js - Optimisations avancées
+
+// Pool de processus Python pour éviter les démarrages répétés
+class PythonProcessPool {
+    constructor(maxProcesses = 3) {
+        this.maxProcesses = maxProcesses;
+        this.availableProcesses = [];
+        this.busyProcesses = new Set();
+        this.queue = [];
+    }
+
+    async getProcess() {
+        // Si un processus est disponible
+        if (this.availableProcesses.length > 0) {
+            const process = this.availableProcesses.pop();
+            this.busyProcesses.add(process);
+            return process;
+        }
+
+        // Si on peut créer un nouveau processus
+        if (this.busyProcesses.size < this.maxProcesses) {
+            const process = this.createNewProcess();
+            this.busyProcesses.add(process);
+            return process;
+        }
+
+        // Sinon, attendre qu'un processus se libère
+        return new Promise((resolve) => {
+            this.queue.push(resolve);
+        });
+    }
+
+    createNewProcess() {
+        // Retourne un objet représentant un processus réutilisable
+        return {
+            id: Date.now() + Math.random(),
+            lastUsed: Date.now(),
+            execCount: 0
+        };
+    }
+
+    releaseProcess(process) {
+        this.busyProcesses.delete(process);
+        process.lastUsed = Date.now();
+        process.execCount++;
+
+        // Si le processus a été trop utilisé, le détruire
+        if (process.execCount > 50) {
+            return;
+        }
+
+        // Si quelqu'un attend, lui donner le processus
+        if (this.queue.length > 0) {
+            const resolve = this.queue.shift();
+            this.busyProcesses.add(process);
+            resolve(process);
+        } else {
+            this.availableProcesses.push(process);
+        }
+    }
+
+    cleanup() {
+        const now = Date.now();
+        this.availableProcesses = this.availableProcesses.filter(process => {
+            return now - process.lastUsed < 5 * 60 * 1000; // 5 minutes
+        });
+    }
+}
+
+const pythonPool = new PythonProcessPool(2);
+
+// Nettoyage périodique du pool
+setInterval(() => {
+    pythonPool.cleanup();
+}, 2 * 60 * 1000); // Toutes les 2 minutes
+
+// Middleware de limitation du taux de requêtes
+class RateLimiter {
+    constructor(windowMs = 60000, maxRequests = 100) {
+        this.windowMs = windowMs;
+        this.maxRequests = maxRequests;
+        this.requests = new Map();
+    }
+
+    isAllowed(clientId) {
+        const now = Date.now();
+        const clientRequests = this.requests.get(clientId) || [];
+        
+        // Nettoyer les anciennes requêtes
+        const recentRequests = clientRequests.filter(time => now - time < this.windowMs);
+        
+        if (recentRequests.length >= this.maxRequests) {
+            return false;
+        }
+        
+        recentRequests.push(now);
+        this.requests.set(clientId, recentRequests);
+        
+        return true;
+    }
+
+    cleanup() {
+        const now = Date.now();
+        for (const [clientId, requests] of this.requests.entries()) {
+            const recentRequests = requests.filter(time => now - time < this.windowMs);
+            if (recentRequests.length === 0) {
+                this.requests.delete(clientId);
+            } else {
+                this.requests.set(clientId, recentRequests);
+            }
+        }
+    }
+}
+
+const rateLimiter = new RateLimiter(60000, 120); // 120 requêtes par minute
+
+// Middleware de rate limiting
+app.use((req, res, next) => {
+    const clientId = req.ip || req.connection.remoteAddress || 'unknown';
+    
+    if (!rateLimiter.isAllowed(clientId)) {
+        return res.status(429).json({
+            error: 'Trop de requêtes',
+            message: 'Veuillez patienter avant de faire une nouvelle requête'
+        });
+    }
+    
+    next();
+});
+
+// Nettoyage périodique du rate limiter
+setInterval(() => {
+    rateLimiter.cleanup();
+}, 5 * 60 * 1000); // Toutes les 5 minutes
+
+// Middleware de préparation des réponses
+app.use((req, res, next) => {
+    // Headers de sécurité et performance
+    res.set({
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
+    });
+    
+    // Logging des requêtes importantes
+    if (req.url.startsWith('/predict-') || req.url.startsWith('/proxy')) {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} from ${req.ip}`);
+    }
+    
+    next();
+});
+
+// Route de diagnostic avancée
+app.get('/diagnostics', (req, res) => {
+    const diagnostics = {
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        cpu: process.cpuUsage(),
+        version: process.version,
+        cache: {
+            size: responseCache.size,
+            pythonPool: {
+                available: pythonPool.availableProcesses.length,
+                busy: pythonPool.busyProcesses.size,
+                queue: pythonPool.queue.length
+            }
+        },
+        environment: {
+            nodeEnv: process.env.NODE_ENV,
+            platform: process.platform,
+            arch: process.arch
+        }
+    };
+    
+    res.json(diagnostics);
+});
+
+// Route de stress test (uniquement en développement)
+app.get('/stress-test', (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ error: 'Non autorisé en production' });
+    }
+    
+    const iterations = parseInt(req.query.iterations) || 100;
+    const results = [];
+    
+    for (let i = 0; i < iterations; i++) {
+        const start = process.hrtime.bigint();
+        // Simulation d'une tâche
+        JSON.stringify({ test: 'data'.repeat(100) });
+        const end = process.hrtime.bigint();
+        results.push(Number(end - start) / 1000000); // en millisecondes
+    }
+    
+    res.json({
+        iterations,
+        averageTime: results.reduce((a, b) => a + b, 0) / results.length,
+        minTime: Math.min(...results),
+        maxTime: Math.max(...results)
+    });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM reçu, arrêt propre...');
+    server.close(() => {
+        console.log('Processus terminé');
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT reçu, arrêt propre...');
+    server.close(() => {
+        console.log('Processus terminé');
+        process.exit(0);
+    });
+});
+
+// Gestion des erreurs non capturées
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    // En production, on pourrait redémarrer le processus ici
+});
+
+const server = app.listen(PORT, () => {
+    console.log(`🚀 Backend optimisé démarré sur le port ${PORT}`);
+    console.log(`🔗 URL du service: ${SERVICE_URL}`);
+    console.log(`💾 Mémoire utilisée: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+    
+    if (process.env.NODE_ENV === 'production') {
+        console.log('🛡️ Mode production activé avec toutes les optimisations');
+    }
+});

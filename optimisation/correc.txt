@@ -1,0 +1,55 @@
+export async function fetchDutchingPrediction(data) {
+    const serverUrl = 'https://pmu-analyseur-new.onrender.com/predict-dutching';
+    
+    console.log('Données envoyées pour la prédiction:', data);
+    
+    try {
+        const response = await fetch(serverUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+
+        console.log('Statut de la réponse:', response.status);
+        console.log('Headers de la réponse:', [...response.headers.entries()]);
+        
+        // Lire la réponse comme texte d'abord
+        const textResponse = await response.text();
+        console.log('Réponse brute du serveur:', textResponse);
+
+        if (!response.ok) {
+            let errorMessage = `Erreur HTTP ${response.status}`;
+            try {
+                const errorData = JSON.parse(textResponse);
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = `${errorMessage}: ${textResponse}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        // Tenter de parser en JSON
+        try {
+            const jsonResponse = JSON.parse(textResponse);
+            console.log('Réponse JSON parsée:', jsonResponse);
+            return jsonResponse;
+        } catch (parseError) {
+            console.error('Erreur de parsing JSON:', parseError);
+            console.error('Contenu qui n\'a pas pu être parsé:', textResponse);
+            throw new Error(`Impossible d'interpréter la réponse du modèle. Réponse reçue: ${textResponse.substring(0, 200)}...`);
+        }
+
+    } catch (networkError) {
+        console.error("Erreur réseau lors de l'appel de prédiction dutching:", networkError);
+        
+        // Si c'est une erreur de réseau (pas une erreur que nous avons lancée)
+        if (!networkError.message.includes('Erreur HTTP') && 
+            !networkError.message.includes('Impossible d\'interpréter')) {
+            throw new Error(`Erreur de connexion: ${networkError.message}`);
+        }
+        
+        throw networkError;
+    }
+}

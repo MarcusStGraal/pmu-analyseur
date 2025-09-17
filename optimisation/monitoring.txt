@@ -1,0 +1,203 @@
+// monitoring.js - Système de monitoring à intégrer dans server.js
+
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = {
+            requests: { total: 0, success: 0, errors: 0 },
+            responseTimes: [],
+            predictions: { total: 0, success: 0, avgTime: 0 },
+            cache: { hits: 0, misses: 0 },
+            uptime: process.hrtime()
+        };
+        
+        // Stocker les métriques des dernières 24h
+        this.timeWindows = {
+            '1h': [], '6h': [], '24h': []
+        };
+        
+        this.startTime = Date.now();
+        
+        // Nettoyage périodique des métriques
+        setInterval(() => this.cleanupMetrics(), 60000); // Chaque minute
+        
+        // Rapport de santé périodique
+        setInterval(() => this.healthReport(), 300000); // Toutes les 5 minutes
+    }
+
+    recordRequest(responseTime, success = true) {
+        this.metrics.requests.total++;
+        if (success) {
+            this.metrics.requests.success++;
+        } else {
+            this.metrics.requests.errors++;
+        }
+        
+        this.metrics.responseTimes.push({
+            time: responseTime,
+            timestamp: Date.now()
+        });
+        
+        // Garder seulement les 1000 derniers temps de réponse
+        if (this.metrics.responseTimes.length > 1000) {
+            this.metrics.responseTimes = this.metrics.responseTimes.slice(-1000);
+        }
+    }
+
+    recordPrediction(executionTime, success = true) {
+        this.metrics.predictions.total++;
+        if (success) {
+            this.metrics.predictions.success++;
+            // Moyenne mobile du temps d'exécution
+            this.metrics.predictions.avgTime = 
+                (this.metrics.predictions.avgTime * (this.metrics.predictions.success - 1) + executionTime) 
+                / this.metrics.predictions.success;
+        }
+    }
+
+    recordCacheHit(hit = true) {
+        if (hit) {
+            this.metrics.cache.hits++;
+        } else {
+            this.metrics.cache.misses++;
+        }
+    }
+
+    getAverageResponseTime(windowMinutes = 60) {
+        const cutoff = Date.now() - (windowMinutes * 60 * 1000);
+        const recent = this.metrics.responseTimes.filter(r => r.timestamp > cutoff);
+        
+        if (recent.length === 0) return 0;
+        
+        return recent.reduce((sum, r) => sum + r.time, 0) / recent.length;
+    }
+
+    getSuccessRate(windowMinutes = 60) {
+        if (this.metrics.requests.total === 0) return 100;
+        return (this.metrics.requests.success / this.metrics.requests.total) * 100;
+    }
+
+    getCacheHitRate() {
+        const total = this.metrics.cache.hits + this.metrics.cache.misses;
+        if (total === 0) return 0;
+        return (this.metrics.cache.hits / total) * 100;
+    }
+
+    cleanupMetrics() {
+        const oneHourAgo = Date.now() - 3600000;
+        this.metrics.responseTimes = this.metrics.responseTimes.filter(
+            r => r.timestamp > oneHourAgo
+        );
+    }
+
+    healthReport() {
+        const report = {
+            timestamp: new Date().toISOString(),
+            uptime: Math.floor((Date.now() - this.startTime) / 1000),
+            requests: {
+                total: this.metrics.requests.total,
+                successRate: this.getSuccessRate().toFixed(2) + '%',
+                avgResponseTime: this.getAverageResponseTime().toFixed(2) + 'ms'
+            },
+            predictions: {
+                total: this.metrics.predictions.total,
+                avgTime: this.metrics.predictions.avgTime.toFixed(2) + 'ms',
+                successRate: this.metrics.predictions.total > 0 
+                    ? ((this.metrics.predictions.success / this.metrics.predictions.total) * 100).toFixed(2) + '%'
+                    : '100%'
+            },
+            cache: {
+                hitRate: this.getCacheHitRate().toFixed(2) + '%'
+            },
+            memory: {
+                used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+                total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+            }
+        };
+
+        console.log('📊 Health Report:', JSON.stringify(report, null, 2));
+        
+        // Alertes automatiques
+        this.checkAlerts(report);
+        
+        return report;
+    }
+
+    checkAlerts(report) {
+        const alerts = [];
+        
+        // Taux de succès trop bas
+        if (parseFloat(report.requests.successRate) < 95) {
+            alerts.push(`⚠️ Taux de succès faible: ${report.requests.successRate}`);
+        }
+        
+        // Temps de réponse trop élevé
+        if (parseFloat(report.requests.avgResponseTime) > 5000) {
+            alerts.push(`🐌 Temps de réponse élevé: ${report.requests.avgResponseTime}`);
+        }
+        
+        // Usage mémoire élevé
+        if (parseFloat(report.memory.used) > 400) {
+            alerts.push(`🧠 Usage mémoire élevé: ${report.memory.used}`);
+        }
+        
+        // Taux de cache faible
+        if (parseFloat(report.cache.hitRate) < 50 && this.metrics.cache.hits + this.metrics.cache.misses > 10) {
+            alerts.push(`💾 Taux de cache faible: ${report.cache.hitRate}`);
+        }
+        
+        if (alerts.length > 0) {
+            console.log('🚨 ALERTES:', alerts.join(', '));
+            // Ici vous pourriez envoyer des notifications externes
+        }
+    }
+
+    getDetailedStats() {
+        return {
+            ...this.healthReport(),
+            detailed: {
+                recentResponseTimes: this.metrics.responseTimes.slice(-20),
+                requestsPerMinute: this.calculateRequestsPerMinute(),
+                errorRate: this.metrics.requests.total > 0 
+                    ? ((this.metrics.requests.errors / this.metrics.requests.total) * 100).toFixed(2) + '%'
+                    : '0%'
+            }
+        };
+    }
+
+    calculateRequestsPerMinute() {
+        const oneMinuteAgo = Date.now() - 60000;
+        const recentRequests = this.metrics.responseTimes.filter(
+            r => r.timestamp > oneMinuteAgo
+        );
+        return recentRequests.length;
+    }
+}
+
+// Middleware de monitoring à ajouter dans server.js
+const monitor = new PerformanceMonitor();
+
+// Middleware pour enregistrer toutes les requêtes
+const monitoringMiddleware = (req, res, next) => {
+    const start = Date.now();
+    
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        const success = res.statusCode < 400;
+        monitor.recordRequest(duration, success);
+    });
+    
+    next();
+};
+
+// Route pour obtenir les métriques
+app.get('/metrics', (req, res) => {
+    res.json(monitor.getDetailedStats());
+});
+
+// Route pour obtenir un rapport de santé simple
+app.get('/health-detailed', (req, res) => {
+    res.json(monitor.healthReport());
+});
+
+// Export pour utilisation dans server.js
+module.exports = { PerformanceMonitor, monitoringMiddleware, monitor };

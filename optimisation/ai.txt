@@ -1,0 +1,303 @@
+// js/api.js - Version optimisée
+
+function formatDate(date) {
+    const d = new Date(date);
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}${month}${year}`;
+}
+
+// Système de warm-up et de récupération automatique
+class ConnectionManager {
+    constructor() {
+        this.baseUrl = 'https://pmu-analyseur-new.onrender.com';
+        this.isWarmedUp = false;
+        this.warmupInProgress = false;
+        this.maxRetries = 3;
+        this.retryDelay = 2000;
+        this.consecutiveFailures = 0;
+        this.lastSuccessTime = Date.now();
+        
+        // Démarrer le warm-up au chargement
+        this.warmUpServer();
+        
+        // Warm-up périodique pour éviter la mise en veille
+        setInterval(() => {
+            if (Date.now() - this.lastSuccessTime > 10 * 60 * 1000) { // 10 minutes
+                this.warmUpServer();
+            }
+        }, 5 * 60 * 1000); // Check toutes les 5 minutes
+    }
+
+    async warmUpServer() {
+        if (this.warmupInProgress) return;
+        
+        this.warmupInProgress = true;
+        console.log('🔥 Warming up server...');
+        
+        try {
+            const start = Date.now();
+            const response = await fetch(`${this.baseUrl}/wake`, {
+                method: 'GET',
+                timeout: 15000
+            });
+            
+            if (response.ok) {
+                const duration = Date.now() - start;
+                console.log(`✅ Server warm-up successful (${duration}ms)`);
+                this.isWarmedUp = true;
+                this.consecutiveFailures = 0;
+                this.lastSuccessTime = Date.now();
+            }
+        } catch (error) {
+            console.warn('⚠️ Server warm-up failed:', error.message);
+            this.consecutiveFailures++;
+        } finally {
+            this.warmupInProgress = false;
+        }
+    }
+
+    async fetchWithRetry(url, options = {}) {
+        // Si on a eu des échecs récents, faire un warm-up d'abord
+        if (this.consecutiveFailures > 0 && !this.isWarmedUp) {
+            await this.warmUpServer();
+        }
+
+        let lastError = null;
+        
+        for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+            try {
+                console.log(`🔄 Attempt ${attempt}/${this.maxRetries} for ${url}`);
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), options.timeout || 30000);
+                
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    this.consecutiveFailures = 0;
+                    this.lastSuccessTime = Date.now();
+                    this.isWarmedUp = true;
+                    return response;
+                }
+                
+                // Si c'est une erreur serveur (503, 502), on peut réessayer
+                if (response.status === 503 || response.status === 502) {
+                    lastError = new Error(`Server error ${response.status} (attempt ${attempt})`);
+                    if (attempt < this.maxRetries) {
+                        console.log(`⏳ Server starting up, retrying in ${this.retryDelay}ms...`);
+                        await this.delay(this.retryDelay * attempt); // Délai exponentiel
+                        continue;
+                    }
+                } else {
+                    // Autres erreurs HTTP, pas de retry
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                
+            } catch (error) {
+                lastError = error;
+                this.consecutiveFailures++;
+                
+                if (error.name === 'AbortError') {
+                    lastError = new Error('Request timeout');
+                }
+                
+                if (attempt < this.maxRetries) {
+                    console.log(`❌ Attempt ${attempt} failed, retrying in ${this.retryDelay}ms...`);
+                    await this.delay(this.retryDelay * attempt);
+                } else {
+                    console.error(`💥 All ${this.maxRetries} attempts failed`);
+                }
+            }
+        }
+        
+        throw lastError || new Error('All retry attempts failed');
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// Instance globale du gestionnaire de connexion
+const connectionManager = new ConnectionManager();
+
+// Cache intelligent pour les données statiques
+class SmartCache {
+    constructor() {
+        this.cache = new Map();
+        this.maxAge = {
+            programme: 30 * 60 * 1000,    // 30 minutes
+            participants: 5 * 60 * 1000,  // 5 minutes
+            performances: 10 * 60 * 1000  // 10 minutes
+        };
+    }
+
+    set(key, data, type = 'default') {
+        this.cache.set(key, {
+            data,
+            timestamp: Date.now(),
+            type
+        });
+        
+        // Nettoyage automatique si trop d'entrées
+        if (this.cache.size > 50) {
+            this.cleanup();
+        }
+    }
+
+    get(key, type = 'default') {
+        const entry = this.cache.get(key);
+        if (!entry) return null;
+
+        const maxAge = this.maxAge[type] || 5 * 60 * 1000;
+        if (Date.now() - entry.timestamp > maxAge) {
+            this.cache.delete(key);
+            return null;
+        }
+
+        return entry.data;
+    }
+
+    cleanup() {
+        const now = Date.now();
+        let cleaned = 0;
+        
+        for (const [key, entry] of this.cache.entries()) {
+            const maxAge = this.maxAge[entry.type] || 5 * 60 * 1000;
+            if (now - entry.timestamp > maxAge) {
+                this.cache.delete(key);
+                cleaned++;
+            }
+        }
+        
+        if (cleaned > 0) {
+            console.log(`🧹 Cache cleaned: ${cleaned} entries removed`);
+        }
+    }
+}
+
+const smartCache = new SmartCache();
+
+// Fonction générique optimisée
+async function fetchWithProxy(targetUrl, cacheKey, cacheType) {
+    // Vérifier le cache d'abord
+    if (cacheKey) {
+        const cached = smartCache.get(cacheKey, cacheType);
+        if (cached) {
+            console.log(`📦 Serving from cache: ${cacheKey}`);
+            return cached;
+        }
+    }
+
+    const proxyUrl = `${connectionManager.baseUrl}/proxy?url=${encodeURIComponent(targetUrl)}`;
+    
+    try {
+        const response = await connectionManager.fetchWithRetry(proxyUrl, {
+            timeout: 25000,
+            headers: {
+                'Accept': 'application/json',
+                'Accept-Encoding': 'gzip, deflate, br'
+            }
+        });
+
+        const data = await response.json();
+        
+        // Mettre en cache si on a une clé
+        if (cacheKey) {
+            smartCache.set(cacheKey, data, cacheType);
+        }
+        
+        return data;
+        
+    } catch (error) {
+        console.error(`Fetch error for ${targetUrl}:`, error.message);
+        throw error;
+    }
+}
+
+// Fonctions d'API optimisées
+export async function handleLoadProgram(selectedDate) {
+    if (!selectedDate) return null;
+    
+    const dateStr = formatDate(selectedDate);
+    const programUrl = `https://offline.turfinfo.api.pmu.fr/rest/client/7/programme/${dateStr}`;
+    const cacheKey = `programme-${dateStr}`;
+
+    try {
+        const programmeData = await fetchWithProxy(programUrl, cacheKey, 'programme');
+        
+        if (!programmeData.programme || !Array.isArray(programmeData.programme.reunions)) {
+            throw new Error("Aucune réunion trouvée pour cette date.");
+        }
+        
+        return programmeData;
+    } catch (error) {
+        console.error(`Erreur de chargement du programme: ${error.message}`);
+        return null;
+    }
+}
+
+export async function fetchParticipants(dateStr, reunionId, courseId) {
+    const participantsUrl = `https://offline.turfinfo.api.pmu.fr/rest/client/7/programme/${dateStr}/${reunionId}/${courseId}/participants`;
+    const cacheKey = `participants-${dateStr}-${reunionId}-${courseId}`;
+    
+    try {
+        return await fetchWithProxy(participantsUrl, cacheKey, 'participants');
+    } catch (error) {
+        console.error(`Erreur de chargement des partants: ${error.message}`);
+        return null;
+    }
+}
+
+export async function fetchDetailedPerformances(dateStr, reunionId, courseId) {
+    const perfUrl = `https://offline.turfinfo.api.pmu.fr/rest/client/61/programme/${dateStr}/${reunionId}/${courseId}/performances-detaillees/pretty`;
+    const cacheKey = `performances-${dateStr}-${reunionId}-${courseId}`;
+    
+    try {
+        return await fetchWithProxy(perfUrl, cacheKey, 'performances');
+    } catch (error) {
+        console.info(`Performances détaillées non disponibles: ${error.message}`);
+        return null;
+    }
+}
+
+export async function fetchDutchingPrediction(data) {
+    const serverUrl = `${connectionManager.baseUrl}/predict-dutching`;
+    
+    console.log('🧠 Sending prediction request:', data);
+    
+    // Pas de cache pour les prédictions (données dynamiques)
+    try {
+        const response = await connectionManager.fetchWithRetry(serverUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data),
+            timeout: 35000 // Plus long pour les prédictions
+        });
+
+        const textResponse = await response.text();
+        
+        try {
+            const jsonResponse = JSON.parse(textResponse);
+            console.log('✅ Prediction successful:', jsonResponse);
+            return jsonResponse;
+        } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            throw new Error(`Réponse invalide du serveur: ${textResponse.substring(0, 200)}`);
+        }
+
+    } catch (error) {
+        console.error("Prediction request failed:", error);
+        throw new Error(`Erreur de prédiction: ${error.message}`);
+    }
+}

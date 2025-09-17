@@ -1,0 +1,43 @@
+import argparse
+import json
+import sys
+
+def main():
+    """Version de test qui simule une prédiction."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--strategie', type=int, required=True)
+    parser.add_argument('-c', '--cotes', type=float, nargs='+', required=True)
+    parser.add_argument('-i', '--indices_forme', type=float, nargs='+', required=True)
+    parser.add_argument('-g', '--gains_par_course', type=int, nargs='+', required=True)
+    
+    args = parser.parse_args()
+    
+    # Simulation simple basée sur la cote moyenne
+    cote_moyenne = sum(args.cotes) / len(args.cotes)
+    forme_moyenne = sum(args.indices_forme) / len(args.indices_forme)
+    
+    # Simple logique de simulation
+    if cote_moyenne < 3.0 and forme_moyenne < 7.0:
+        predicted_gain_net = 1.25  # Gain simulé
+        decision_text = "✅ PARIER. Le modèle anticipe un gain. Espérance de rentabilité positive."
+    else:
+        predicted_gain_net = -0.75  # Perte simulée
+        decision_text = "❌ S'ABSTENIR. Le modèle anticipe une perte. Ce pari n'est pas jugé rentable."
+    
+    # Affichage formaté
+    print("--- RECOMMANDATION DU MODÈLE ---")
+    print(f"Stratégie Analysée : Dutching sur {args.strategie} favoris")
+    print(f"Prédiction du Gain Net : {predicted_gain_net:.2f} € (pour une mise de 10€)")
+    print("\n--- DÉCISION ---")
+    print(decision_text)
+    
+    # JSON pour faciliter le parsing
+    result = {
+        "gainNet": float(predicted_gain_net),
+        "decision": decision_text,
+        "strategie": args.strategie
+    }
+    print(f"\nJSON_RESULT: {json.dumps(result)}")
+
+if __name__ == '__main__':
+    main()

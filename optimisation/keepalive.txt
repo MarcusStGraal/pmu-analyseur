@@ -1,0 +1,45 @@
+# .github/workflows/keep-alive.yml
+name: Keep Render Service Alive
+
+on:
+  schedule:
+    # Toutes les 10 minutes pendant les heures d'utilisation (7h-23h UTC)
+    - cron: '*/10 7-23 * * *'
+    # Toutes les 30 minutes pendant la nuit
+    - cron: '*/30 0-6 * * *'
+  workflow_dispatch: # Permet le déclenchement manuel
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Keep Render service alive
+        run: |
+          echo "Pinging Render services..."
+          
+          # Votre service principal
+          response1=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "User-Agent: GitHub-KeepAlive-Bot" \
+            "https://pmu-analyseur-new.onrender.com/wake")
+          
+          echo "Service response: $response1"
+          
+          # Vérifier aussi le health endpoint
+          health=$(curl -s -w "%{http_code}" \
+            "https://pmu-analyseur-new.onrender.com/health" | tail -n1)
+          
+          echo "Health check: $health"
+          
+          if [[ "$response1" == "200" ]]; then
+            echo "✅ Service is alive and responding"
+          else
+            echo "❌ Service might be sleeping or having issues"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "🚨 Keep-alive failed! Service might be down."
+          # Vous pouvez ajouter ici une notification Slack, Discord, etc.
