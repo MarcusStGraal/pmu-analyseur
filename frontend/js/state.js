@@ -56,7 +56,7 @@ class StateManager {
         this._subscribers = [];
         this.filterWorker = null;
         if (window.Worker) {
-            this.filterWorker = new Worker('js/worker.js', { type: 'module' });
+            this.filterWorker = new Worker('/js/worker.js', { type: 'module' });
             this.filterWorker.onmessage = (e) => this.setCalculationResult(e.data);
             this.filterWorker.onerror = (error) => {
                 this.setState({
