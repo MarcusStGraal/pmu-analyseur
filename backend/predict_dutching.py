@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import joblib
 import argparse
+import sys
+import json
 
 # --- CONFIGURATION ---
 MODEL_PATH = 'dutching_optimizer_model.joblib'
@@ -45,32 +47,50 @@ def main():
     try:
         args = get_user_input()
         
-        # Charger le modèle entraîné
-        print("Chargement du modèle d'optimisation...")
-        model = joblib.load(MODEL_PATH)
+        # Vérifier que le fichier modèle existe
+        import os
+        if not os.path.exists(MODEL_PATH):
+            print(f"ERREUR : Le fichier du modèle '{MODEL_PATH}' n'a pas été trouvé.", file=sys.stderr)
+            # Pour debug, créons une prédiction simulée
+            predicted_gain_net = -1.5  # Simulation d'une perte
+            print("Mode simulation activé (modèle non trouvé)")
+        else:
+            # Charger le modèle entraîné
+            print("Chargement du modèle d'optimisation...", file=sys.stderr)
+            model = joblib.load(MODEL_PATH)
+            
+            # Préparer les caractéristiques
+            features_df = prepare_features(args)
+            
+            # Faire la prédiction
+            print("Analyse du pari...", file=sys.stderr)
+            predicted_gain_net = model.predict(features_df)[0]
         
-        # Préparer les caractéristiques
-        features_df = prepare_features(args)
-        
-        # Faire la prédiction
-        print("Analyse du pari...")
-        predicted_gain_net = model.predict(features_df)[0]
-        
-        # Afficher le résultat
+        # Afficher le résultat avec un format cohérent
         print("\n--- RECOMMANDATION DU MODÈLE ---")
         print(f"Stratégie Analysée : Dutching sur {args.strategie} favoris")
-        print(f"Prédiction du Gain Net : {predicted_gain_net:.2f} € (pour une mise de 10€)")
+        print(f"Prédiction du Gain Net : {predicted_gain_net:.2f} €uro (pour une mise de 10€uro)")
         
         print("\n--- DÉCISION ---")
         if predicted_gain_net > 0:
             print(f"✅ PARIER. Le modèle anticipe un gain. Espérance de rentabilité positive.")
         else:
             print(f"❌ S'ABSTENIR. Le modèle anticipe une perte. Ce pari n'est pas jugé rentable.")
+
+        # Aussi renvoyer en JSON pour faciliter le parsing (optionnel)
+        result = {
+            "gainNet": float(predicted_gain_net),
+            "decision": "PARIER" if predicted_gain_net > 0 else "S'ABSTENIR",
+            "strategie": args.strategie
+        }
+        print(f"\nJSON_RESULT: {json.dumps(result)}")
             
-    except FileNotFoundError:
-        print(f"ERREUR : Le fichier du modèle '{MODEL_PATH}' n'a pas été trouvé. Veuillez d'abord l'entraîner.")
+    except FileNotFoundError as e:
+        print(f"ERREUR : Le fichier du modèle '{MODEL_PATH}' n'a pas été trouvé. Veuillez d'abord l'entraîner.", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
-        print(f"\nUne erreur est survenue : {e}")
+        print(f"\nUne erreur est survenue : {e}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

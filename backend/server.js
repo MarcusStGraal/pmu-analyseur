@@ -46,54 +46,114 @@ app.post('/predict-dutching', (req, res) => {
     const pythonExecutable = process.platform === 'win32' ? 'python' : 'python3';
     const scriptPath = path.join(__dirname, 'predict_dutching.py');
 
-    // Construction de la commande
-    const command = [
-        pythonExecutable,
-        `"${scriptPath}"`,
-        '-s', strategie,
-        '-c', ...cotes,
-        '-i', ...indices_forme,
-        '-g', ...gains_par_course
-    ].join(' ');
+    // Construction de la commande - AMÉLIORÉE
+    const args = [
+        scriptPath,
+        '-s', strategie.toString(),
+        '-c', ...cotes.map(c => c.toString()),
+        '-i', ...indices_forme.map(i => i.toString()),
+        '-g', ...gains_par_course.map(g => g.toString())
+    ];
 
-    console.log(`Exécution de la commande : ${command}`);
+    console.log(`Exécution de la commande : ${pythonExecutable} ${args.join(' ')}`);
 
-    // Exécution du script Python
-    exec(command, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Erreur d'exécution: ${error.message}`);
-            return res.status(500).json({ error: "Erreur lors de l'exécution du script de prédiction.", details: error.message });
+    // Exécution du script Python avec spawn au lieu d'exec pour une meilleure gestion
+    const { spawn } = require('child_process');
+    const pythonProcess = spawn(pythonExecutable, args);
+
+    let stdout = '';
+    let stderr = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+    });
+
+    pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+            console.error(`Script Python terminé avec le code: ${code}`);
+            console.error(`Stderr: ${stderr}`);
+            return res.status(500).json({ 
+                error: "Erreur lors de l'exécution du script de prédiction.", 
+                details: stderr || `Exit code: ${code}` 
+            });
         }
-        if (stderr) {
-            console.error(`Erreur stderr: ${stderr}`);
-            // On peut choisir de continuer si ce ne sont que des warnings, ou de s'arrêter
-             if (!stdout) { // S'il n'y a pas de sortie standard, c'est probablement une vraie erreur
-                return res.status(500).json({ error: "Erreur dans le script de prédiction.", details: stderr });
-             }
-        }
 
-        // Parsing de la sortie du script pour la renvoyer en JSON
+        // Parsing de la sortie du script - VERSION AMÉLIORÉE
         try {
+            console.log('Sortie du script Python:', stdout);
+            
             const lines = stdout.trim().split('\n');
-            const gainLine = lines.find(line => line.includes('Prédiction du Gain Net'));
-            const decisionLine = lines.find(line => line.startsWith('✅') || line.startsWith('❌'));
+            
+            // Recherche plus robuste des lignes importantes
+            let gainLine = null;
+            let decisionLine = null;
+            
+            for (const line of lines) {
+                if (line.includes('Prédiction du Gain Net') || line.includes('Prediction du Gain Net')) {
+                    gainLine = line;
+                }
+                if (line.startsWith('✅') || line.startsWith('❌') || 
+                    line.includes('PARIER') || line.includes('S\'ABSTENIR')) {
+                    decisionLine = line;
+                }
+            }
 
-            if (!gainLine || !decisionLine) {
-                 throw new Error('Format de sortie du script inattendu.');
+            if (!gainLine) {
+                console.error('Ligne de gain non trouvée dans:', stdout);
+                throw new Error('Impossible de trouver la prédiction de gain dans la sortie du script.');
             }
             
-            const gainNet = parseFloat(gainLine.split(':')[1].trim().split(' ')[0]);
+            if (!decisionLine) {
+                console.error('Ligne de décision non trouvée dans:', stdout);
+                throw new Error('Impossible de trouver la décision dans la sortie du script.');
+            }
+            
+            // Extraction du gain avec regex plus robuste
+            const gainMatch = gainLine.match(/([+-]?\d+\.?\d*)\s*€/);
+            if (!gainMatch) {
+                throw new Error('Impossible d\'extraire la valeur de gain de: ' + gainLine);
+            }
+            
+            const gainNet = parseFloat(gainMatch[1]);
+            if (isNaN(gainNet)) {
+                throw new Error('La valeur de gain extraite n\'est pas un nombre valide: ' + gainMatch[1]);
+            }
+            
             const decision = decisionLine.trim();
+
+            console.log('Réponse parsée:', { gainNet, decision });
 
             res.json({
                 gainNet: gainNet,
-                decision: decision
+                decision: decision,
+                debug: {
+                    stdout: stdout,
+                    gainLine: gainLine,
+                    decisionLine: decisionLine
+                }
             });
 
         } catch (parseError) {
-             console.error(`Erreur de parsing: ${parseError.message}`);
-             res.status(500).json({ error: "Impossible d'interpréter la réponse du modèle.", details: stdout });
+            console.error(`Erreur de parsing: ${parseError.message}`);
+            console.error(`Stdout complet: ${stdout}`);
+            res.status(500).json({ 
+                error: "Impossible d'interpréter la réponse du modèle.", 
+                details: parseError.message,
+                stdout: stdout
+            });
         }
+    });
+
+    pythonProcess.on('error', (error) => {
+        console.error(`Erreur de processus Python: ${error.message}`);
+        res.status(500).json({ 
+            error: "Impossible de démarrer le script Python.", 
+            details: error.message 
+        });
     });
 });
 
