@@ -10,7 +10,7 @@ function formatDate(date) {
 
 // Fonction générique qui utilise notre propre backend
 async function fetchWithProxy(targetUrl) {
-    const proxyUrl = `https://pmu-analyseur.onrender.com/proxy?url=${encodeURIComponent(targetUrl)}`;
+    const proxyUrl = `https://pmu-analyseur-new.onrender.com/proxy?url=${encodeURIComponent(targetUrl)}`;
     const maxRetries = 3;
     const retryDelay = 2000; // 2 secondes
 
@@ -80,8 +80,8 @@ export async function fetchDetailedPerformances(dateStr, reunionId, courseId) {
 }
 
 export async function fetchDutchingPrediction(data) {
-const serverUrl = 'https://pmu-analyseur.onrender.com/predict-dutching';
-try {
+    const serverUrl = 'https://pmu-analyseur-new.onrender.com/predict-dutching';
+    try {
 const response = await fetch(serverUrl, {
 method: 'POST',
 headers: {
