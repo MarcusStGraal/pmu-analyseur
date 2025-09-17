@@ -30,7 +30,7 @@ function handleCreateFilterFromModal(type) {
 
 function setupTheme() {
     const themeToggleCheckbox = document.getElementById('theme-toggle-checkbox');
-    if (!themeToggleCheckbox) return; // Sécurité : si l'élément n'existe pas, on arrête.
+    if (!themeToggleCheckbox) return;
     
     const applyTheme = (theme) => {
         if (theme === 'dark') {
@@ -75,7 +75,6 @@ function connectEventListeners() {
     });
     addListener('toggleDailyAnalysis', 'change', e => {
         stateManager.setState({ isDailyAnalysisEnabled: e.target.checked });
-        // Recharge la journée pour appliquer le changement
         const dateVal = document.getElementById('dateInput').value;
         if (dateVal) stateManager.changeDate(dateVal);
     });
@@ -138,12 +137,6 @@ function connectEventListeners() {
         const currentSort = stateManager.getState().ui.stats.sortState.by;
         stateManager.updateStatsUI({ sortState: { by: currentSort === 'num' ? 'data' : 'num' } });
     });
-    const scrollerContainer = document.getElementById('criteria-selector-container');
-    if (scrollerContainer) {
-        addListener('scroll-start-btn', 'click', () => scrollerContainer.scrollTo({ left: 0, behavior: 'smooth' }));
-        addListener('scroll-middle-btn', 'click', () => scrollerContainer.scrollTo({ left: (scrollerContainer.scrollWidth - scrollerContainer.clientWidth) / 2, behavior: 'smooth' }));
-        addListener('scroll-end-btn', 'click', () => scrollerContainer.scrollTo({ left: scrollerContainer.scrollWidth, behavior: 'smooth' }));
-    }
     
     addListener('fonction', 'change', e => {
         const filterName = e.target.value;
@@ -168,7 +161,6 @@ function connectEventListeners() {
                 stateManager.runCalculation(betType, betName, limit);
             }
         }
-        // NOUVEAU : Gérer le clic sur le bouton d'analyse Dutching
         if (e.target.id === 'run-dutching-analysis-btn') {
             const strategieSelect = document.getElementById('dutching-strategie-select');
             if (strategieSelect) {
@@ -176,11 +168,6 @@ function connectEventListeners() {
                 stateManager.runDutchingPrediction(strategie);
             }
         }
-        // NOUVEAU : Gérer le clic sur le bouton d'application
-        if (e.target.id === 'apply-dutching-btn') {
-            stateManager.prepareDutchingApplication();
-        }
-        // MODIFIÉ : Gérer le clic sur le bouton de calcul
         if (e.target.closest('#calculate-distribution-btn')) {
             stateManager.calculateBettingDistribution();
         }
@@ -192,33 +179,26 @@ function connectEventListeners() {
         const betName = betSelect.options[betSelect.selectedIndex].text;
         stateManager.setState({ 
             results: { ...stateManager.getState().results, betType, betName, combinations: [] },
-            dutchingPrediction: null,
-            isDutchingApplierVisible: false // <-- On cache l'interface
+            dutchingPrediction: null 
         });
     });
-        
+
     const filtersContent = document.getElementById('filters-content');
     if (filtersContent) {
         filtersContent.addEventListener('change', e => {
-            if (e.target.closest('#distribution-horse-list')) {
-                const selectedHorses = Array.from(
-                    document.querySelectorAll('#distribution-horse-list input:checked')
-                ).map(cb => parseInt(cb.dataset.num, 10));
-                stateManager.updateBettingDistribution({ selectedHorses });
+            const distributionUI = e.target.closest('#dutching-application-ui');
+            if (distributionUI) {
+                if (e.target.id === 'distribution-mode-select') {
+                    stateManager.updateBettingDistribution({ mode: e.target.value });
+                }
             }
         });
-    }
-
-    const filtersFooter = document.getElementById('filters-action-footer');
-    if (filtersFooter) {
-        filtersFooter.addEventListener('change', e => {
-            if (e.target.id === 'distribution-mode-select') {
-                stateManager.updateBettingDistribution({ mode: e.target.value });
-            }
-        });
-        filtersFooter.addEventListener('input', e => {
-             if (e.target.id === 'distribution-value-input') {
-                stateManager.updateBettingDistribution({ value: parseFloat(e.target.value) || 0 });
+         filtersContent.addEventListener('input', e => {
+            const distributionUI = e.target.closest('#dutching-application-ui');
+            if (distributionUI) {
+                 if (e.target.id === 'distribution-value-input') {
+                    stateManager.updateBettingDistribution({ value: parseFloat(e.target.value) || 0 });
+                }
             }
         });
     }
@@ -297,7 +277,7 @@ function connectEventListeners() {
             if (e.target.closest('#criteria-profile-list') && e.target.type === 'checkbox') {
                 const newSelectedKeys = Array.from(
                     criteriaModal.querySelectorAll('#criteria-profile-list input[type="checkbox"]:checked')
-                ).map(checkbox => checkbox.dataset.criteriaKey).filter(Boolean); // On filtre les valeurs null/undefined
+                ).map(checkbox => checkbox.dataset.criteriaKey).filter(Boolean);
                 stateManager.updateCriteriaModal({ selectedKeys: newSelectedKeys });
             }
         });

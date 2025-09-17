@@ -67,7 +67,7 @@ function updateTabTitles(state) {
             DOM.statsTitle.style.color = color;
         }
         if (DOM.filtersTitle) {
-            DOM.filtersTitle.textContent = `OPTIMISEUR${raceSuffix}`;
+            DOM.filtersTitle.textContent = `MES FILTRES${raceSuffix}`;
             DOM.filtersTitle.style.color = color;
         }
         if (DOM.resultsTitle) {
@@ -75,18 +75,10 @@ function updateTabTitles(state) {
             DOM.resultsTitle.style.color = color;
         }
     } else {
-        if (DOM.statsTitle) {
-            DOM.statsTitle.textContent = 'Analyse des Partants';
-            DOM.statsTitle.style.color = 'inherit';
-        }
-        if (DOM.filtersTitle) {
-            DOM.filtersTitle.textContent = 'Mes Filtres';
-            DOM.filtersTitle.style.color = 'inherit';
-        }
-        if (DOM.resultsTitle) {
-            DOM.resultsTitle.textContent = 'Mes Tickets';
-            DOM.resultsTitle.style.color = 'inherit';
-        }
+        if (DOM.statsTitle) DOM.statsTitle.textContent = 'Analyse des Partants';
+        if (DOM.filtersTitle) DOM.filtersTitle.textContent = 'Mes Filtres';
+        if (DOM.resultsTitle) DOM.resultsTitle.textContent = 'Mes Tickets';
+        [DOM.statsTitle, DOM.filtersTitle, DOM.resultsTitle].forEach(el => el && (el.style.color = 'inherit'));
     }
 }
 
@@ -809,20 +801,14 @@ function renderStrategieTab(state) {
 
 function renderFiltersContent(state) {
     if (!DOM.standardFiltersUI || !DOM.distributionUI) return;
-
     const isRaceSelected = !!state.participantsData;
     const betType = state.results.betType;
     const isSimpleBet = betType === 1;
-
-    // Masquer le footer d'action si c'est un pari simple
     if (DOM.filtersActionFooter) {
         DOM.filtersActionFooter.style.display = isSimpleBet ? 'none' : 'flex';
     }
-    
-    // Afficher l'UI appropriée
     DOM.standardFiltersUI.style.display = isSimpleBet ? 'none' : 'block';
     DOM.distributionUI.style.display = isSimpleBet ? 'block' : 'none';
-
     if (isRaceSelected && isSimpleBet) {
         renderDutchingOptimizer(state);
     } else if (!isRaceSelected && isSimpleBet) {
@@ -832,58 +818,43 @@ function renderFiltersContent(state) {
 
 function renderDutchingOptimizer(state) {
     if (!DOM.distributionUI) return;
-
-    const { dutchingPrediction, participantsData, isDutchingApplierVisible } = state;
-
+    const { dutchingPrediction, participantsData } = state;
     let resultHTML = '';
-    let actionButtonHTML = '';
+    let applicationHTML = '';
 
     if (dutchingPrediction) {
-        const { gainNet, decision, strategie } = dutchingPrediction;
+        const { gainNet, decision } = dutchingPrediction;
         const isPositive = gainNet > 0;
         const gainColor = isPositive ? 'var(--success-color)' : 'var(--danger-color)';
 
         resultHTML = `
             <div class="dutching-result-card" style="border-left-color: ${gainColor};">
-                <h3>Recommandation du Modèle</h3>
-                <p><strong>Stratégie:</strong> Dutching sur ${strategie} favoris</p>
-                <p><strong>Gain Net Prédit:</strong> <strong style="color:${gainColor};">${gainNet.toFixed(2)} €</strong> (pour 10€)</p>
                 <div class="dutching-decision">${escapeHTML(decision)}</div>
             </div>
         `;
 
         if (isPositive) {
-            actionButtonHTML = `
-                <button id="apply-dutching-btn" type="button" class="btn-primary" style="margin-top: 15px;">
-                    <i class="fas fa-calculator"></i> Répartir les Mises
-                </button>
-            `;
+            applicationHTML = renderDutchingApplication(state);
         }
     }
 
     DOM.distributionUI.innerHTML = `
         <div class="dutching-container">
-            <h3><i class="fas fa-brain"></i> Optimiseur de Dutching</h3>
-            <p class="dutching-description">
-                Analyse la rentabilité d'un pari "Dutching" sur les favoris de la course.
-            </p>
-            <div class="form-group">
-                <label for="dutching-strategie-select">Nombre de favoris à jouer</label>
+            <div class="dutching-controls-compact">
                 <select id="dutching-strategie-select" ${!participantsData ? 'disabled' : ''}>
                     <option value="2">2 Favoris</option>
                     <option value="3" selected>3 Favoris</option>
                     <option value="4">4 Favoris</option>
                 </select>
+                <button id="run-dutching-analysis-btn" type="button" ${!participantsData ? 'disabled' : ''}>
+                    Analyser
+                </button>
             </div>
-            <button id="run-dutching-analysis-btn" type="button" class="btn-primary" ${!participantsData ? 'disabled' : ''}>
-                <i class="fas fa-rocket"></i> Analyser la Rentabilité
-            </button>
             <div id="dutching-results-container">
-                ${resultHTML || '<p class="placeholder-text">Le résultat de l\'analyse apparaîtra ici.</p>'}
-                ${actionButtonHTML}
+                ${resultHTML}
             </div>
-            <div id="dutching-application-ui" style="display: ${isDutchingApplierVisible ? 'block' : 'none'};">
-                ${isDutchingApplierVisible ? renderDutchingApplication(state) : ''}
+            <div id="dutching-application-ui">
+                ${applicationHTML}
             </div>
         </div>
     `;
@@ -903,22 +874,22 @@ function renderDutchingApplication(state) {
             nom: participantsData.nom[numIndex[num]],
             cote: participantsData.cote[numIndex[num]]
         };
-        return `<span class="horse-chip">${horse.num} - ${escapeHTML(horse.nom)} (${horse.cote}/1)</span>`;
+        return `<span class="horse-chip">${horse.num} (${horse.cote}/1)</span>`;
     }).join('');
 
     let resultsHTML = '';
     if (distResults) {
         if(distResults.error) {
-            resultsHTML = `<p class="info-box non-partant" style="margin-top: 15px;">${escapeHTML(distResults.error)}</p>`;
+            resultsHTML = `<p class="info-box non-partant">${escapeHTML(distResults.error)}</p>`;
         } else {
              resultsHTML = `
                 <div class="distribution-results-summary">
                     <strong>Mise Totale : ${distResults.totalMise.toFixed(2)} €</strong>
                 </div>
                 <table class="distribution-results-table">
-                    <thead><tr><th>Cheval</th><th>Mise</th><th>Gain Net</th></tr></thead>
+                    <thead><tr><th>N°</th><th>Mise</th><th>Gain Net</th></tr></thead>
                     <tbody>
-                        ${distResults.mises.map((m, index) => `
+                        ${distResults.mises.sort((a,b) => a.num - b.num).map((m, index) => `
                             <tr>
                                 <td><strong>${m.num}</strong></td>
                                 <td>${m.mise.toFixed(2)} €</td>
@@ -934,12 +905,11 @@ function renderDutchingApplication(state) {
 
     return `
         <div class="dutching-applier-container">
-            <h4>Appliquer la stratégie</h4>
             <div class="horse-chips-container">${horsesHTML}</div>
             <div class="dutching-controls">
                 <select id="distribution-mode-select">
-                    <option value="totalBet" ${mode === 'totalBet' ? 'selected' : ''}>Mise totale</option>
-                    <option value="targetProfitSimple" ${mode === 'targetProfitSimple' ? 'selected' : ''}>Bénéfice visé</option>
+                     <option value="targetProfitSimple" ${mode === 'targetProfitSimple' ? 'selected' : ''}>Bénéfice Visé</option>
+                     <option value="totalBet" ${mode === 'totalBet' ? 'selected' : ''}>Mise Totale</option>
                 </select>
                 <input type="number" id="distribution-value-input" value="${value}" min="1">
                 <button id="calculate-distribution-btn" type="button"><i class="fas fa-calculator"></i></button>

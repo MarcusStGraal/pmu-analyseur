@@ -22,9 +22,8 @@ const initialState = {
     criteriaProfiles: [],
     activeCriteriaProfileId: null,
     dutchingPrediction: null,
-    isDutchingApplierVisible: false, // <-- NOUVEAU
     bettingDistribution: {
-        mode: 'totalBet',
+        mode: 'targetProfitSimple',
         value: 10,
         selectedHorses: [],
         results: null
@@ -68,28 +67,11 @@ class StateManager {
         }
     }
 
-    // NOUVELLE FONCTION pour lancer la prédiction
-    prepareDutchingApplication() {
-        const { dutchingPrediction } = this._state;
-        if (!dutchingPrediction || !dutchingPrediction.favoris) return;
-
-        const favorisNums = dutchingPrediction.favoris.map(f => f.num);
-
-        this.setState({
-            isDutchingApplierVisible: true,
-            bettingDistribution: {
-                ...initialState.bettingDistribution,
-                selectedHorses: favorisNums
-            }
-        });
-    }
-
     async runDutchingPrediction(strategie) {
         this.setState({
             isLoading: true,
             status: { message: `Analyse de la stratégie ${strategie} favoris...` },
-            dutchingPrediction: null,
-            isDutchingApplierVisible: false // <-- On cache l'interface à chaque nouvelle analyse
+            dutchingPrediction: null
         });
 
         const { participantsData } = this._state;
@@ -98,7 +80,6 @@ class StateManager {
             return;
         }
 
-        // 1. Trouver les favoris
         const favoris = participantsData.num
             .map((num, i) => ({
                 num: num,
@@ -111,7 +92,6 @@ class StateManager {
             .sort((a, b) => a.cote - b.cote)
             .slice(0, strategie);
 
-        // 2. Vérifier si on a assez de données
         if (favoris.length < strategie) {
             this.setState({
                 isLoading: false,
@@ -120,7 +100,6 @@ class StateManager {
             return;
         }
 
-        // 3. Préparer les données pour l'API
         const predictionData = {
             strategie: strategie,
             cotes: favoris.map(p => p.cote),
@@ -128,14 +107,27 @@ class StateManager {
             gains_par_course: favoris.map(p => p.gainsParCourse)
         };
         
-        // 4. Appeler l'API
         try {
             const result = await fetchDutchingPrediction(predictionData);
-            this.setState({
-                isLoading: false,
-                dutchingPrediction: { ...result, favoris, strategie },
-                status: { message: 'Analyse de rentabilité terminée.' }
-            });
+            
+            if (result.gainNet > 0) {
+                 this.setState({
+                    isLoading: false,
+                    dutchingPrediction: { ...result, favoris, strategie },
+                    bettingDistribution: {
+                        ...initialState.bettingDistribution,
+                        selectedHorses: favoris.map(f => f.num)
+                    },
+                    status: { message: 'Analyse de rentabilité terminée.' }
+                });
+            } else {
+                this.setState({
+                    isLoading: false,
+                    dutchingPrediction: { ...result, favoris, strategie },
+                    bettingDistribution: initialState.bettingDistribution,
+                    status: { message: 'Analyse de rentabilité terminée.' }
+                });
+            }
         } catch (error) {
             this.setState({
                 isLoading: false,
