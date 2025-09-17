@@ -176,18 +176,27 @@ function connectEventListeners() {
                 stateManager.runDutchingPrediction(strategie);
             }
         }
+        // NOUVEAU : Gérer le clic sur le bouton d'application
+        if (e.target.id === 'apply-dutching-btn') {
+            stateManager.prepareDutchingApplication();
+        }
+        // MODIFIÉ : Gérer le clic sur le bouton de calcul
+        if (e.target.closest('#calculate-distribution-btn')) {
+            stateManager.calculateBettingDistribution();
+        }
     });
 
     addListener('nbCombinaison', 'change', e => {
         const betSelect = e.target;
         const betType = parseInt(betSelect.value, 10);
         const betName = betSelect.options[betSelect.selectedIndex].text;
-        // On réinitialise la prédiction si on change de type de pari
         stateManager.setState({ 
             results: { ...stateManager.getState().results, betType, betName, combinations: [] },
-            dutchingPrediction: null 
+            dutchingPrediction: null,
+            isDutchingApplierVisible: false // <-- On cache l'interface
         });
     });
+        
     const filtersContent = document.getElementById('filters-content');
     if (filtersContent) {
         filtersContent.addEventListener('change', e => {

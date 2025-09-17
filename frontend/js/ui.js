@@ -810,36 +810,38 @@ function renderStrategieTab(state) {
 function renderFiltersContent(state) {
     if (!DOM.standardFiltersUI || !DOM.distributionUI) return;
 
+    const isRaceSelected = !!state.participantsData;
     const betType = state.results.betType;
     const isSimpleBet = betType === 1;
 
+    // Masquer le footer d'action si c'est un pari simple
+    if (DOM.filtersActionFooter) {
+        DOM.filtersActionFooter.style.display = isSimpleBet ? 'none' : 'flex';
+    }
+    
+    // Afficher l'UI appropriée
     DOM.standardFiltersUI.style.display = isSimpleBet ? 'none' : 'block';
     DOM.distributionUI.style.display = isSimpleBet ? 'block' : 'none';
 
-    if (isSimpleBet) {
+    if (isRaceSelected && isSimpleBet) {
         renderDutchingOptimizer(state);
+    } else if (!isRaceSelected && isSimpleBet) {
+        DOM.distributionUI.innerHTML = `<p class="placeholder-text">Sélectionnez une course pour utiliser l'optimiseur.</p>`;
     }
 }
 
 function renderDutchingOptimizer(state) {
     if (!DOM.distributionUI) return;
 
-    const { dutchingPrediction, participantsData } = state;
+    const { dutchingPrediction, participantsData, isDutchingApplierVisible } = state;
 
     let resultHTML = '';
+    let actionButtonHTML = '';
+
     if (dutchingPrediction) {
-        const { gainNet, decision, favoris, strategie } = dutchingPrediction;
+        const { gainNet, decision, strategie } = dutchingPrediction;
         const isPositive = gainNet > 0;
         const gainColor = isPositive ? 'var(--success-color)' : 'var(--danger-color)';
-        
-        const favorisHTML = favoris.map(p => `
-            <li>
-                <strong>N°${p.num}</strong>: 
-                Cote ${p.cote.toFixed(1)}, 
-                Ind.Forme ${p.indiceForme.toFixed(1)}, 
-                Gains/Crs ${Math.round(p.gainsParCourse / 1000)}k€
-            </li>
-        `).join('');
 
         resultHTML = `
             <div class="dutching-result-card" style="border-left-color: ${gainColor};">
@@ -847,19 +849,23 @@ function renderDutchingOptimizer(state) {
                 <p><strong>Stratégie:</strong> Dutching sur ${strategie} favoris</p>
                 <p><strong>Gain Net Prédit:</strong> <strong style="color:${gainColor};">${gainNet.toFixed(2)} €</strong> (pour 10€)</p>
                 <div class="dutching-decision">${escapeHTML(decision)}</div>
-                <details class="dutching-details">
-                    <summary>Détails des favoris analysés</summary>
-                    <ul>${favorisHTML}</ul>
-                </details>
             </div>
         `;
+
+        if (isPositive) {
+            actionButtonHTML = `
+                <button id="apply-dutching-btn" type="button" class="btn-primary" style="margin-top: 15px;">
+                    <i class="fas fa-calculator"></i> Répartir les Mises
+                </button>
+            `;
+        }
     }
 
     DOM.distributionUI.innerHTML = `
         <div class="dutching-container">
             <h3><i class="fas fa-brain"></i> Optimiseur de Dutching</h3>
             <p class="dutching-description">
-                Ce modèle analyse la rentabilité potentielle d'un pari "Dutching" (mises réparties) sur les favoris de la course.
+                Analyse la rentabilité d'un pari "Dutching" sur les favoris de la course.
             </p>
             <div class="form-group">
                 <label for="dutching-strategie-select">Nombre de favoris à jouer</label>
@@ -874,29 +880,71 @@ function renderDutchingOptimizer(state) {
             </button>
             <div id="dutching-results-container">
                 ${resultHTML || '<p class="placeholder-text">Le résultat de l\'analyse apparaîtra ici.</p>'}
+                ${actionButtonHTML}
+            </div>
+            <div id="dutching-application-ui" style="display: ${isDutchingApplierVisible ? 'block' : 'none'};">
+                ${isDutchingApplierVisible ? renderDutchingApplication(state) : ''}
             </div>
         </div>
     `;
-
-    renderFiltersFooter(false, null); // Toujours cacher le footer du répartiteur
 }
 
-function renderFiltersFooter(isSimpleBet, distState) {
-    if (!DOM.filtersActionFooter) return;
+function renderDutchingApplication(state) {
+    const { participantsData, bettingDistribution } = state;
+    const { selectedHorses, mode, value, results: distResults } = bettingDistribution;
     
-    let content = '';
-     if (isSimpleBet) {
-        // En mode Simple (Dutching), on ne veut pas de footer spécifique.
-        // On pourrait mettre un message, ou le cacher.
-        DOM.filtersActionFooter.innerHTML = '';
-        return;
+    if (!selectedHorses || selectedHorses.length === 0) return '';
+    
+    const numIndex = Object.fromEntries(participantsData.num.map((n, i) => [n, i]));
+    
+    const horsesHTML = selectedHorses.map(num => {
+        const horse = {
+            num,
+            nom: participantsData.nom[numIndex[num]],
+            cote: participantsData.cote[numIndex[num]]
+        };
+        return `<span class="horse-chip">${horse.num} - ${escapeHTML(horse.nom)} (${horse.cote}/1)</span>`;
+    }).join('');
+
+    let resultsHTML = '';
+    if (distResults) {
+        if(distResults.error) {
+            resultsHTML = `<p class="info-box non-partant" style="margin-top: 15px;">${escapeHTML(distResults.error)}</p>`;
+        } else {
+             resultsHTML = `
+                <div class="distribution-results-summary">
+                    <strong>Mise Totale : ${distResults.totalMise.toFixed(2)} €</strong>
+                </div>
+                <table class="distribution-results-table">
+                    <thead><tr><th>Cheval</th><th>Mise</th><th>Gain Net</th></tr></thead>
+                    <tbody>
+                        ${distResults.mises.map((m, index) => `
+                            <tr>
+                                <td><strong>${m.num}</strong></td>
+                                <td>${m.mise.toFixed(2)} €</td>
+                                <td style="color: ${distResults.gainsNets[index] >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
+                                    ${distResults.gainsNets[index].toFixed(2)} €
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+        }
     }
-    
-    content = `
-        <span id="filters-status-message"></span>
-        <button id="generer" style="background-color: var(--success-color);" type="button">
-            <i class="fas fa-rocket"></i> Lancer la Simplification
-        </button>
+
+    return `
+        <div class="dutching-applier-container">
+            <h4>Appliquer la stratégie</h4>
+            <div class="horse-chips-container">${horsesHTML}</div>
+            <div class="dutching-controls">
+                <select id="distribution-mode-select">
+                    <option value="totalBet" ${mode === 'totalBet' ? 'selected' : ''}>Mise totale</option>
+                    <option value="targetProfitSimple" ${mode === 'targetProfitSimple' ? 'selected' : ''}>Bénéfice visé</option>
+                </select>
+                <input type="number" id="distribution-value-input" value="${value}" min="1">
+                <button id="calculate-distribution-btn" type="button"><i class="fas fa-calculator"></i></button>
+            </div>
+            <div class="distribution-results-container">${resultsHTML}</div>
+        </div>
     `;
-    DOM.filtersActionFooter.innerHTML = content;
 }

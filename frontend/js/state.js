@@ -21,7 +21,8 @@ const initialState = {
     selectedFilterSetId: null,
     criteriaProfiles: [],
     activeCriteriaProfileId: null,
-    dutchingPrediction: null, // Ajout pour stocker le résultat
+    dutchingPrediction: null,
+    isDutchingApplierVisible: false, // <-- NOUVEAU
     bettingDistribution: {
         mode: 'totalBet',
         value: 10,
@@ -68,11 +69,27 @@ class StateManager {
     }
 
     // NOUVELLE FONCTION pour lancer la prédiction
+    prepareDutchingApplication() {
+        const { dutchingPrediction } = this._state;
+        if (!dutchingPrediction || !dutchingPrediction.favoris) return;
+
+        const favorisNums = dutchingPrediction.favoris.map(f => f.num);
+
+        this.setState({
+            isDutchingApplierVisible: true,
+            bettingDistribution: {
+                ...initialState.bettingDistribution,
+                selectedHorses: favorisNums
+            }
+        });
+    }
+
     async runDutchingPrediction(strategie) {
         this.setState({
             isLoading: true,
             status: { message: `Analyse de la stratégie ${strategie} favoris...` },
-            dutchingPrediction: null
+            dutchingPrediction: null,
+            isDutchingApplierVisible: false // <-- On cache l'interface à chaque nouvelle analyse
         });
 
         const { participantsData } = this._state;
