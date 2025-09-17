@@ -1,37 +1,32 @@
-# 1. Partir d'une image officielle Node.js (version 18, légère)
+# 1. Partir d'une image officielle Node.js
 FROM node:18-slim
 
 # 2. Installer les outils système et Python
-# On ajoute python3-venv pour pouvoir créer des environnements virtuels
 RUN apt-get update && apt-get install -y python3 python3-pip python3-venv && apt-get clean
 
-# 3. Créer un environnement virtuel Python
+# 3. Créer et activer un environnement virtuel
 ENV VENV_PATH=/opt/venv
 RUN python3 -m venv $VENV_PATH
-
-# 4. Ajouter l'environnement virtuel au PATH du système
-# Cela garantit que les commandes 'python' et 'pip' utiliseront celles de l'environnement virtuel
 ENV PATH="$VENV_PATH/bin:$PATH"
 
-# 5. Définir le dossier de travail
+# 4. Définir le dossier de travail dans le conteneur
 WORKDIR /app
 
-# 6. Copier les fichiers de configuration des dépendances
-COPY package*.json ./
-COPY requirements.txt ./
+# 5. Copier UNIQUEMENT les fichiers du backend dans le dossier de travail
+COPY backend/package*.json ./
+COPY backend/requirements.txt ./
 
-# 7. Installer les dépendances Python DANS l'environnement virtuel
-# La protection PEP 668 est maintenant contournée proprement
+# 6. Installer les dépendances Python DANS l'environnement virtuel
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 8. Installer les dépendances Node.js
+# 7. Installer les dépendances Node.js
 RUN npm install
 
-# 9. Copier le reste du code de notre application
-COPY . .
+# 8. Copier le reste du code du backend
+COPY backend/ .
 
-# 10. Exposer le port que notre serveur utilise
+# 9. Exposer le port
 EXPOSE 3001
 
-# 11. La commande pour démarrer le serveur
+# 10. La commande pour démarrer le serveur
 CMD ["node", "server.js"]
