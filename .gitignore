@@ -1,1 +1,25 @@
+# Dépendances Node.js
 node_modules
+
+# Fichiers de log
+*.log
+npm-debug.log*
+
+# Fichiers d'environnement (contiennent des secrets)
+.env
+.env.local
+.env.*.local
+
+# Cache et artefacts Python
+__pycache__/
+*.pyc
+*.pyo
+.venv
+venv/
+env/
+
+# Fichiers système macOS
+.DS_Store
+
+# Fichiers système Windows
+Thumbs.dbnode_modules

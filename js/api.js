@@ -78,3 +78,26 @@ export async function fetchDetailedPerformances(dateStr, reunionId, courseId) {
         return null;
     }
 }
+
+export async function fetchDutchingPrediction(data) {
+const serverUrl = 'https://pmu-analyseur.onrender.com/predict-dutching';
+try {
+const response = await fetch(serverUrl, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+},
+body: JSON.stringify(data),
+});
+
+if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erreur serveur ${response.status}`);
+    }
+
+    return response.json();
+} catch (error) {
+    console.error("Erreur lors de l'appel de prédiction dutching:", error);
+    throw error;
+}
+}

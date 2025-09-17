@@ -1,6 +1,6 @@
 // js/state.js
 import { switchTab } from './ui.js';
-import { handleLoadProgram, fetchParticipants, fetchDetailedPerformances } from './api.js';
+import { handleLoadProgram, fetchParticipants, fetchDetailedPerformances, fetchDutchingPrediction } from './api.js';
 import * as cache from './cache.js';
 import { createGrilleFromParticipants, formatDate, calculateInfluenceScores } from './processing.js';
 
@@ -21,6 +21,7 @@ const initialState = {
     selectedFilterSetId: null,
     criteriaProfiles: [],
     activeCriteriaProfileId: null,
+    dutchingPrediction: null, // Ajout pour stocker le résultat
     bettingDistribution: {
         mode: 'totalBet',
         value: 10,
@@ -65,6 +66,67 @@ class StateManager {
             };
         }
     }
+
+    // NOUVELLE FONCTION pour lancer la prédiction
+    async runDutchingPrediction(strategie) {
+        this.setState({
+            isLoading: true,
+            status: { message: `Analyse de la stratégie ${strategie} favoris...` },
+            dutchingPrediction: null
+        });
+
+        const { participantsData } = this._state;
+        if (!participantsData) {
+            this.setState({ isLoading: false, status: { message: "Aucune donnée de partant disponible.", isError: true } });
+            return;
+        }
+
+        // 1. Trouver les favoris
+        const favoris = participantsData.num
+            .map((num, i) => ({
+                num: num,
+                cote: participantsData.cote[i],
+                indiceForme: participantsData.indiceForme[i],
+                gainsParCourse: participantsData.gainsParCourse[i],
+                statut: participantsData.statut[i]
+            }))
+            .filter(p => p.statut === 'PARTANT' && p.cote !== null && p.indiceForme !== null && p.gainsParCourse !== null)
+            .sort((a, b) => a.cote - b.cote)
+            .slice(0, strategie);
+
+        // 2. Vérifier si on a assez de données
+        if (favoris.length < strategie) {
+            this.setState({
+                isLoading: false,
+                status: { message: `Pas assez de favoris avec des données complètes (trouvés: ${favoris.length}, requis: ${strategie}).`, isError: true }
+            });
+            return;
+        }
+
+        // 3. Préparer les données pour l'API
+        const predictionData = {
+            strategie: strategie,
+            cotes: favoris.map(p => p.cote),
+            indices_forme: favoris.map(p => p.indiceForme),
+            gains_par_course: favoris.map(p => p.gainsParCourse)
+        };
+        
+        // 4. Appeler l'API
+        try {
+            const result = await fetchDutchingPrediction(predictionData);
+            this.setState({
+                isLoading: false,
+                dutchingPrediction: { ...result, favoris, strategie },
+                status: { message: 'Analyse de rentabilité terminée.' }
+            });
+        } catch (error) {
+            this.setState({
+                isLoading: false,
+                status: { message: `Erreur du modèle : ${error.message}`, isError: true }
+            });
+        }
+    }
+
     async saveNoteForCurrentRace(note) {
         this.setState({ currentRaceNote: note });
         const { selectedDate, selectedReunionNum, selectedCourseNum } = this._state;
@@ -164,7 +226,6 @@ class StateManager {
                 criteriaModal: {
                     selectedProfileId: activeProfile.id,
                     currentName: activeProfile.name,
-                    // On s'assure que c'est bien un tableau, mais sans conversion inutile si c'en est déjà un
                     selectedKeys: Array.isArray(activeProfile.criteriaKeys) ? [...activeProfile.criteriaKeys] : []
                 }
             }
@@ -195,15 +256,13 @@ class StateManager {
         const profiles = [...this._state.criteriaProfiles];
         const existingProfile = profiles.find(p => p.id === selectedProfileId);
         if (existingProfile && !existingProfile.isDefault) {
-            // Mise à jour
             existingProfile.name = currentName;
-            existingProfile.criteriaKeys = selectedKeys; // C'est déjà un Array
+            existingProfile.criteriaKeys = selectedKeys;
         } else {
-            // Création
             const newProfile = {
                 id: Date.now().toString(),
                 name: currentName,
-                criteriaKeys: selectedKeys // C'est déjà un Array
+                criteriaKeys: selectedKeys
             };
             profiles.push(newProfile);
             this.updateCriteriaModal({ selectedProfileId: newProfile.id });
@@ -257,26 +316,20 @@ class StateManager {
     async initialize() {
         await this.loadFilterSets();
         this.loadCriteriaProfiles(); 
-
         const savedStateJSON = localStorage.getItem('pmuAppState');
         let stateToLoad = null;
         let dateToLoad = new Date();
-        
         let finalProfileId = this.getState().criteriaProfiles[0]?.id || null;
-
         if (savedStateJSON) {
             const savedState = JSON.parse(savedStateJSON);
             stateToLoad = savedState;
-
             if (savedState.date) {
                 dateToLoad = new Date(savedState.date + 'T00:00:00');
             }
-
             const savedProfileId = savedState.activeCriteriaProfileId;
             if (this.getState().criteriaProfiles.some(p => p.id === savedProfileId)) {
                 finalProfileId = savedProfileId;
             }
-
             this.setState({
                 filters: savedState.filters || [],
                 results: {
@@ -287,12 +340,9 @@ class StateManager {
                 isDailyAnalysisEnabled: savedState.isDailyAnalysisEnabled === true
             });
         }
-        
         this.setState({ activeCriteriaProfileId: finalProfileId });
-
         const checkbox = document.getElementById('toggleDailyAnalysis');
         if (checkbox) checkbox.checked = this._state.isDailyAnalysisEnabled;
-        
         const dateStr = dateToLoad.toISOString().split('T')[0];
         document.getElementById('dateInput').value = dateStr;
         await this.changeDate(dateStr, stateToLoad);
@@ -333,7 +383,8 @@ class StateManager {
             participantsData: null,
             dailyAnalysisCache: null,
             selectedReunionNum: null,
-            selectedCourseNum: null
+            selectedCourseNum: null,
+            dutchingPrediction: null
         });
         const date = new Date(dateStr + 'T00:00:00');
         const programmeKey = `programme-${formatDate(date)}`;
@@ -352,10 +403,8 @@ class StateManager {
         const programmeToUse = this.getState().programmeData;
         if (programmeToUse && programmeToUse.programme) {
             if (this._state.isDailyAnalysisEnabled) {
-                console.log("Calcul des influences activé. Lancement de l'analyse.");
                 await this.getDailyAnalysis(date, programmeToUse.programme);
             } else {
-                console.log("Calcul des influences désactivé. Nettoyage du cache d'analyse.");
                 this.setState({ dailyAnalysisCache: null });
             }
             if (stateToLoad && stateToLoad.reunionNum) {
@@ -384,7 +433,8 @@ class StateManager {
             selectedReunionNum: reunionNum,
             selectedCourseNum: null,
             participantsData: null,
-            currentRaceDifficulty: null
+            currentRaceDifficulty: null,
+            dutchingPrediction: null
         });
         if (courseToSelect) {
             await this.selectCourse(courseToSelect);
@@ -397,6 +447,7 @@ class StateManager {
             participantsData: null,
             currentRaceDifficulty: null,
             currentRaceNote: '',
+            dutchingPrediction: null,
             bettingDistribution: initialState.bettingDistribution,
             ui: { ...this._state.ui, stats: { ...initialState.ui.stats, manualSelection: [] } }
         });
@@ -453,7 +504,6 @@ class StateManager {
     processParticipantsData(participantsJson, performancesJson) {
         if (!participantsJson) return null;
         const { programmeData, dailyAnalysisCache, selectedReunionNum, selectedCourseNum } = this._state;
-        
         if (this._state.isDailyAnalysisEnabled && (!dailyAnalysisCache || !dailyAnalysisCache.influenceScores)) {
             console.error("dailyAnalysisCache.influenceScores n'est pas disponible. La grille sera incomplète.");
         }
@@ -595,7 +645,6 @@ class StateManager {
     toggleChampReduit(isChecked) {
         this.setState({ results: { ...this._state.results, showChampReduit: isChecked } });
     }
-
     updateBettingDistribution(newState) {
         this.setState({
             bettingDistribution: {
@@ -605,35 +654,28 @@ class StateManager {
             }
         });
     }
-
     calculateBettingDistribution() {
         const { participantsData, bettingDistribution } = this._state;
         const { mode, value, selectedHorses } = bettingDistribution;
-
         if (!participantsData || selectedHorses.length === 0) {
             this.setState({ status: { message: "Veuillez sélectionner au moins un cheval.", isError: true } });
             return;
         }
-        
         const numIndex = Object.fromEntries(participantsData.num.map((n, i) => [n, i]));
-
         const selection = selectedHorses
             .map(num => ({
                 num,
                 cote: participantsData.cote[numIndex[num]]
             }))
             .filter(h => h.cote && h.cote > 1 && participantsData.statut[numIndex[h.num]] === 'PARTANT');
-
         if (selection.length === 0) {
             this.setState({ status: { message: "Aucun cheval sélectionné avec une cote valide.", isError: true } });
             return;
         }
-
         let mises = [];
         let totalMise = 0;
         let error = null;
-
-if (mode === 'totalBet') {
+        if (mode === 'totalBet') {
             const miseTotale = Math.floor(value);
             const inverseSum = selection.reduce((sum, h) => sum + (1 / h.cote), 0);
             if (inverseSum > 0) {
@@ -646,16 +688,12 @@ if (mode === 'totalBet') {
                         fraction: rawMise - Math.floor(rawMise)
                     };
                 });
-
                 let currentTotal = betsWithFraction.reduce((sum, b) => sum + b.mise, 0);
                 let remainder = miseTotale - currentTotal;
-
                 betsWithFraction.sort((a, b) => b.fraction - a.fraction);
-
                 for (let i = 0; i < remainder; i++) {
                     betsWithFraction[i].mise += 1;
                 }
-                
                 mises = betsWithFraction.map(({num, cote, mise}) => ({num, cote, mise}));
                 totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
             }
@@ -680,7 +718,6 @@ if (mode === 'totalBet') {
             }
             if(!error) totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
         }
-
         if (error) {
              this.setState({
                 status: { message: error, isError: true },

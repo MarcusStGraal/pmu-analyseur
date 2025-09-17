@@ -168,8 +168,13 @@ function connectEventListeners() {
                 stateManager.runCalculation(betType, betName, limit);
             }
         }
-        if (e.target.id === 'calculate-distribution-btn') {
-            stateManager.calculateBettingDistribution();
+        // NOUVEAU : Gérer le clic sur le bouton d'analyse Dutching
+        if (e.target.id === 'run-dutching-analysis-btn') {
+            const strategieSelect = document.getElementById('dutching-strategie-select');
+            if (strategieSelect) {
+                const strategie = parseInt(strategieSelect.value, 10);
+                stateManager.runDutchingPrediction(strategie);
+            }
         }
     });
 
@@ -177,9 +182,12 @@ function connectEventListeners() {
         const betSelect = e.target;
         const betType = parseInt(betSelect.value, 10);
         const betName = betSelect.options[betSelect.selectedIndex].text;
-        stateManager.setState({ results: { ...stateManager.getState().results, betType, betName, combinations: [] } });
+        // On réinitialise la prédiction si on change de type de pari
+        stateManager.setState({ 
+            results: { ...stateManager.getState().results, betType, betName, combinations: [] },
+            dutchingPrediction: null 
+        });
     });
-
     const filtersContent = document.getElementById('filters-content');
     if (filtersContent) {
         filtersContent.addEventListener('change', e => {

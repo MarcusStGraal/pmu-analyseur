@@ -60,7 +60,6 @@ if (DOM.status) {
 function updateTabTitles(state) {
     const { selectedReunionNum, selectedCourseNum, currentRaceDifficulty } = state;
     const color = currentRaceDifficulty ? currentRaceDifficulty.color : 'inherit';
-    
     if (selectedReunionNum && selectedCourseNum) {
         const raceSuffix = ` R${selectedReunionNum}C${selectedCourseNum}`;
         if (DOM.statsTitle) {
@@ -68,7 +67,7 @@ function updateTabTitles(state) {
             DOM.statsTitle.style.color = color;
         }
         if (DOM.filtersTitle) {
-            DOM.filtersTitle.textContent = `MES FILTRES${raceSuffix}`;
+            DOM.filtersTitle.textContent = `OPTIMISEUR${raceSuffix}`;
             DOM.filtersTitle.style.color = color;
         }
         if (DOM.resultsTitle) {
@@ -200,11 +199,12 @@ export function renderApp(state) {
 
         renderStatsExplorer(state.participantsData, activeProfile, state.ui.stats.currentCriteria, state.ui.stats.sortState, state.ui.stats.manualSelection, state.participantsData.arrivalRanks, state.ui.stats.displayMode, state.isDailyAnalysisEnabled);
         updateSendSelectionButton(state.ui.stats.manualSelection);
-        activateFiltersTab(true, state.results.betType);
-        renderBettingDistribution(state);
+        activateFiltersTab(true);
+        renderFiltersContent(state);
     } else {
         renderStatsExplorer(null);
-        activateFiltersTab(false, state.results.betType);
+        activateFiltersTab(false);
+        renderFiltersContent(state);
     }
 
     updateFunctionsList(state.filters, state.participantsData);
@@ -408,7 +408,7 @@ export function resetCourseSelection() {
     if (DOM.reunionInfoDiv) DOM.reunionInfoDiv.style.display = 'none';
     if (DOM.courseInfoDiv) DOM.courseInfoDiv.style.display = 'none';
     if (DOM.nonPartantsInfoDiv) DOM.nonPartantsInfoDiv.style.display = 'none';
-    activateFiltersTab(false, 3);
+    activateFiltersTab(false);
     renderStatsExplorer(null, null, 'cote', { by: 'num' }, [], null);
 }
 
@@ -448,11 +448,11 @@ export function renderStatsExplorer(grille, activeProfile, criteriaKey, sortStat
 
     populateCriteriaSelector(criteriaKey, visibleCriteria);
 
-    const participantsArray = grille.num.map((index, num) => {
-        const participant = { index: num };
+    const participantsArray = grille.num.map((num, i) => {
+        const participant = {};
         for (const key in grille) {
             if (grille.hasOwnProperty(key)) {
-                participant[key] = grille[key][num];
+                participant[key] = grille[key][i];
             }
         }
         return participant;
@@ -483,20 +483,9 @@ export function renderStatsExplorer(grille, activeProfile, criteriaKey, sortStat
     }
 }
 
-export function activateFiltersTab(isActive, betType) {
+export function activateFiltersTab(isActive) {
     if (DOM.filtersPlaceholder) DOM.filtersPlaceholder.style.display = isActive ? 'none' : 'block';
     if (DOM.filtersContent) DOM.filtersContent.style.display = isActive ? 'block' : 'none';
-    
-    if (!isActive) return;
-
-    const isSimpleBet = betType === 1;
-
-    if(DOM.standardFiltersUI) DOM.standardFiltersUI.style.display = isSimpleBet ? 'none' : 'block';
-    if(DOM.distributionUI) DOM.distributionUI.style.display = isSimpleBet ? 'block' : 'none';
-    
-    // Le bouton 'générer' n'existe que dans le footer des filtres standards maintenant
-    const genererButton = document.getElementById('generer');
-    if (genererButton) genererButton.disabled = !isActive;
 }
 
 export function updateFunctionsList(functions, grille) {
@@ -512,7 +501,7 @@ export function updateFunctionsList(functions, grille) {
     }
 
     const influenceKeys = ['influenceJockey', 'influenceEntraineur', 'influencePere'];
-    const isDailyAnalysisEnabled = grille && grille.influenceJockey.some(v => v > 0);
+    const isDailyAnalysisEnabled = grille && grille.influenceJockey && grille.influenceJockey.some(v => v > 0);
     
     const availableColumns = FILTER_FUNCTION_COLUMNS.filter(c => isDailyAnalysisEnabled || !influenceKeys.includes(c.value));
     const columnOptionsHTML = availableColumns.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
@@ -588,16 +577,6 @@ function renderCombinationsProgressively(combinations, betSize, useChampReduit) 
     requestAnimationFrame(renderChunk);
 }
 
-function shouldNormalize(values, criterion) {
-    if (!values || values.length === 0) return false;
-    if (criterion.format === 'currency') {
-        const maxVal = Math.max(...values);
-        return maxVal > 10000;
-    }
-    const minVal = Math.min(...values);
-    return minVal > 100;
-}
-
 function formatDisplayValue(rawValue, criterion, allParticipants, isRank = false) {
     if (isRank) return rawValue;
 
@@ -642,7 +621,7 @@ function buildExplorerGridHTML(participants, criterion, selection, arrivalRanks,
     const isRankView = displayMode === 'rank' && criterion.rankable;
     const rankKey = 'rank' + criterion.key.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
 
-    return participants.map(p => {
+    return participants.map((p, i) => {
         const isSelectedClass = selection.includes(p.num) ? 'selected' : '';
         const arrivalRank = arrivalRanks[p.num];
         const winnerClass = arrivalRank ? `winner-${arrivalRank}` : '';
@@ -828,130 +807,96 @@ function renderStrategieTab(state) {
     }
 }
 
+function renderFiltersContent(state) {
+    if (!DOM.standardFiltersUI || !DOM.distributionUI) return;
+
+    const betType = state.results.betType;
+    const isSimpleBet = betType === 1;
+
+    DOM.standardFiltersUI.style.display = isSimpleBet ? 'none' : 'block';
+    DOM.distributionUI.style.display = isSimpleBet ? 'block' : 'none';
+
+    if (isSimpleBet) {
+        renderDutchingOptimizer(state);
+    }
+}
+
+function renderDutchingOptimizer(state) {
+    if (!DOM.distributionUI) return;
+
+    const { dutchingPrediction, participantsData } = state;
+
+    let resultHTML = '';
+    if (dutchingPrediction) {
+        const { gainNet, decision, favoris, strategie } = dutchingPrediction;
+        const isPositive = gainNet > 0;
+        const gainColor = isPositive ? 'var(--success-color)' : 'var(--danger-color)';
+        
+        const favorisHTML = favoris.map(p => `
+            <li>
+                <strong>N°${p.num}</strong>: 
+                Cote ${p.cote.toFixed(1)}, 
+                Ind.Forme ${p.indiceForme.toFixed(1)}, 
+                Gains/Crs ${Math.round(p.gainsParCourse / 1000)}k€
+            </li>
+        `).join('');
+
+        resultHTML = `
+            <div class="dutching-result-card" style="border-left-color: ${gainColor};">
+                <h3>Recommandation du Modèle</h3>
+                <p><strong>Stratégie:</strong> Dutching sur ${strategie} favoris</p>
+                <p><strong>Gain Net Prédit:</strong> <strong style="color:${gainColor};">${gainNet.toFixed(2)} €</strong> (pour 10€)</p>
+                <div class="dutching-decision">${escapeHTML(decision)}</div>
+                <details class="dutching-details">
+                    <summary>Détails des favoris analysés</summary>
+                    <ul>${favorisHTML}</ul>
+                </details>
+            </div>
+        `;
+    }
+
+    DOM.distributionUI.innerHTML = `
+        <div class="dutching-container">
+            <h3><i class="fas fa-brain"></i> Optimiseur de Dutching</h3>
+            <p class="dutching-description">
+                Ce modèle analyse la rentabilité potentielle d'un pari "Dutching" (mises réparties) sur les favoris de la course.
+            </p>
+            <div class="form-group">
+                <label for="dutching-strategie-select">Nombre de favoris à jouer</label>
+                <select id="dutching-strategie-select" ${!participantsData ? 'disabled' : ''}>
+                    <option value="2">2 Favoris</option>
+                    <option value="3" selected>3 Favoris</option>
+                    <option value="4">4 Favoris</option>
+                </select>
+            </div>
+            <button id="run-dutching-analysis-btn" type="button" class="btn-primary" ${!participantsData ? 'disabled' : ''}>
+                <i class="fas fa-rocket"></i> Analyser la Rentabilité
+            </button>
+            <div id="dutching-results-container">
+                ${resultHTML || '<p class="placeholder-text">Le résultat de l\'analyse apparaîtra ici.</p>'}
+            </div>
+        </div>
+    `;
+
+    renderFiltersFooter(false, null); // Toujours cacher le footer du répartiteur
+}
+
 function renderFiltersFooter(isSimpleBet, distState) {
     if (!DOM.filtersActionFooter) return;
     
     let content = '';
-    if (isSimpleBet && distState) {
-        const { mode, value } = distState;
-        const isTotalBet = mode === 'totalBet';
-        content = `
-            <div class="footer-form-group">
-                <select id="distribution-mode-select">
-                    <option value="totalBet" ${isTotalBet ? 'selected' : ''}>Répartir mise totale</option>
-                    <option value="targetProfitSimple" ${mode === 'targetProfitSimple' ? 'selected' : ''}>Viser bénéfice (Simple)</option>
-                    <option value="targetProfitExact" ${mode === 'targetProfitExact' ? 'selected' : ''}>Viser bénéfice (Exact)</option>
-                </select>
-            </div>
-            <div class="footer-form-group">
-                <input type="number" id="distribution-value-input" value="${value}" min="1">
-            </div>
-            <button id="calculate-distribution-btn" type="button" style="background-color: var(--success-color);">
-                <i class="fas fa-calculator"></i> Calculer
-            </button>
-        `;
-    } else {
-        content = `
-            <span id="filters-status-message"></span>
-            <button id="generer" style="background-color: var(--success-color);" disabled type="button">
-                <i class="fas fa-rocket"></i> Lancer la Simplification
-            </button>
-        `;
-    }
-    DOM.filtersActionFooter.innerHTML = content;
-}
-
-function formatCurrency(value) {
-    const roundedValue = Math.round(value * 100) / 100;
-    if (roundedValue % 1 === 0) {
-        return `${roundedValue} €`;
-    }
-    return `${roundedValue.toFixed(2).replace('.', ',')} €`;
-}
-
-function renderBettingDistribution(state) {
-    const { participantsData, bettingDistribution, results } = state;
-    
-    activateFiltersTab(!!participantsData, results.betType);
-    renderFiltersFooter(results.betType === 1, bettingDistribution);
-    
-    if (results.betType !== 1) return;
-
-    const { selectedHorses, results: distResults } = bettingDistribution;
-    const horseListContainer = document.getElementById('distribution-horse-list');
-    const resultsContainer = document.getElementById('distribution-results');
-    if (!horseListContainer || !resultsContainer) return;
-    
-    if (!participantsData) {
-        horseListContainer.innerHTML = '<p class="placeholder-text">Sélectionnez une course pour voir les partants.</p>';
+     if (isSimpleBet) {
+        // En mode Simple (Dutching), on ne veut pas de footer spécifique.
+        // On pourrait mettre un message, ou le cacher.
+        DOM.filtersActionFooter.innerHTML = '';
         return;
     }
-
-    const numIndex = Object.fromEntries(participantsData.num.map((n, i) => [n, i]));
     
-    const partants = participantsData.num
-        .map((num, i) => ({
-            num: num,
-            nom: participantsData.nom[i],
-            statut: participantsData.statut[i],
-            cote: participantsData.cote[i]
-        }))
-        .filter(p => p.statut === 'PARTANT')
-        .sort((a, b) => (a.cote || 999) - (b.cote || 999));
-
-    horseListContainer.innerHTML = partants.map(p => {
-        const isChecked = selectedHorses.includes(p.num);
-        const cote = p.cote || 'N/A';
-        return `
-            <label class="distribution-horse-item">
-                <input type="checkbox" data-num="${p.num}" ${isChecked ? 'checked' : ''}>
-                <span class="horse-num">${p.num}</span>
-                <span class="horse-name">${escapeHTML(p.nom)}</span>
-                <span class="horse-cote">${cote} /1</span>
-            </label>
-        `;
-    }).join('');
-        
-    if (distResults) {
-        if(distResults.error) {
-            resultsContainer.innerHTML = `<p class="info-box non-partant">${escapeHTML(distResults.error)}</p>`;
-        } else {
-            const resultHTML = distResults.mises
-              .sort((a, b) => (a.cote || 999) - (b.cote || 999))
-              .map((m, index) => {
-                const nom = participantsData.nom[numIndex[m.num]];
-                const gainBrut = m.mise * m.cote;
-                const gainsNet = gainBrut - distResults.totalMise;
-                return `
-                    <tr>
-                        <td><strong>${m.num}</strong> ${escapeHTML(nom)}</td>
-                        <td>${formatCurrency(m.mise)}</td>
-                        <td>${formatCurrency(gainBrut)}</td>
-                        <td style="color: ${gainsNet >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
-                            ${formatCurrency(gainsNet)}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            resultsContainer.innerHTML = `
-                <div class="distribution-results-summary">
-                    <strong>Mise Totale : ${formatCurrency(distResults.totalMise)}</strong>
-                </div>
-                <table class="distribution-results-table">
-                    <thead>
-                        <tr>
-                            <th>Cheval</th>
-                            <th>Mise</th>
-                            <th>Gain Brut</th>
-                            <th>Gain Net</th>
-                        </tr>
-                    </thead>
-                    <tbody>${resultHTML}</tbody>
-                </table>
-            `;
-        }
-    } else {
-        resultsContainer.innerHTML = '';
-    }
+    content = `
+        <span id="filters-status-message"></span>
+        <button id="generer" style="background-color: var(--success-color);" type="button">
+            <i class="fas fa-rocket"></i> Lancer la Simplification
+        </button>
+    `;
+    DOM.filtersActionFooter.innerHTML = content;
 }
