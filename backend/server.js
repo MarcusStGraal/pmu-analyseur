@@ -39,7 +39,7 @@ app.post('/predict-dutching', (req, res) => {
         return res.status(400).json({ error: 'Données manquantes pour la prédiction.' });
     }
 
-    const pythonExecutable = '/usr/bin/python3';
+   const pythonExecutable = '/opt/venv/bin/python'; 
     const scriptPath = path.join(__dirname, 'predict_dutching.py');
 
     const args = [
