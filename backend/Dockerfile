@@ -12,7 +12,7 @@ ENV PATH="$VENV_PATH/bin:$PATH"
 # 4. Définir le dossier de travail dans le conteneur
 WORKDIR /app
 
-# 5. Copier UNIQUEMENT les fichiers du backend dans le dossier de travail
+# 5. Copier les fichiers de configuration des dépendances
 COPY backend/package*.json ./
 COPY backend/requirements.txt ./
 
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 7. Installer les dépendances Node.js
 RUN npm install
 
-# 8. Copier le reste du code du backend
+# 8. Copier le reste du code du backend, Y COMPRIS LE MODÈLE
 COPY backend/ .
 
 # 9. Exposer le port
