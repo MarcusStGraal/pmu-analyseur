@@ -684,6 +684,7 @@ class StateManager {
         let mises = [];
         let totalMise = 0;
         let error = null;
+
         if (mode === 'totalBet') {
             const miseTotale = parseFloat(value);
             const inverseSum = selection.reduce((sum, h) => sum + (1 / h.cote), 0);
@@ -696,21 +697,22 @@ class StateManager {
                 let remainder = miseTotale - currentTotal;
                 betsWithFraction.sort((a, b) => b.fraction - a.fraction);
                 for (let i = 0; i < remainder; i++) {
-                    betsWithFraction[i].mise += 1;
+                    if(betsWithFraction[i]) betsWithFraction[i].mise += 1;
                 }
                 mises = betsWithFraction.map(({num, cote, mise}) => ({num, cote, mise}));
-                totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
             }
-        } else { // 'targetProfitSimple'
+        } else { 
             const beneficeVise = parseFloat(value);
-            mises = selection.map(h => {
-                const mise = (h.cote > 1) ? Math.ceil(beneficeVise / (h.cote - 1)) : 0;
-                return { num: h.num, cote: h.cote, mise };
-            });
-                }
+            if (mode === 'targetProfitSimple') {
+                mises = selection.map(h => {
+                    const mise = (h.cote > 1) ? Math.ceil(beneficeVise / (h.cote - 1)) : 0;
+                    return { num: h.num, cote: h.cote, mise };
+                });
             }
-            if(!error) totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
         }
+        
+        if(!error) totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
+
         if (error) {
              this.setState({
                 status: { message: error, isError: true },
