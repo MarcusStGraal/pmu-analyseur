@@ -6,10 +6,16 @@ function escapeHTML(unsafe) {
     if (typeof unsafe !== 'string') return '';
     return unsafe.replace(/[&<>"']/g, match => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'})[match]);
 }
+
 function formatCurrency(value) {
-    // Supprime les .00 inutiles
-    return parseFloat(value.toFixed(2)).toString().replace('.', ',') + ' €';
+    const num = parseFloat(value);
+    if (isNaN(num)) return '0 €';
+    if (num % 1 === 0) {
+        return num.toString() + ' €';
+    }
+    return num.toFixed(2).replace('.', ',') + ' €';
 }
+
 const DOM = {
     status: document.getElementById('status'),
     reunionSelect: document.getElementById('reunionSelect'),
@@ -808,7 +814,8 @@ function renderFiltersContent(state) {
     const betType = state.results.betType;
     const isSimpleBet = betType === 1;
     if (DOM.filtersActionFooter) {
-        DOM.filtersActionFooter.style.display = isSimpleBet ? 'none' : 'flex';
+        // Le footer est maintenant géré par sa propre fonction de rendu
+        renderFiltersFooter(isSimpleBet);
     }
     DOM.standardFiltersUI.style.display = isSimpleBet ? 'none' : 'block';
     DOM.distributionUI.style.display = isSimpleBet ? 'block' : 'none';
@@ -890,16 +897,17 @@ function renderDutchingApplication(state) {
                     <strong>Mise Totale : ${formatCurrency(distResults.totalMise)}</strong>
                 </div>
                 <table class="distribution-results-table">
-                    <thead><tr><th>N°</th><th>Mise</th><th>Gain Net</th></tr></thead>
+                    <thead><tr><th>Cheval</th><th>Mise</th><th>Gain Net</th></tr></thead>
                     <tbody>
-                        ${distResults.mises.sort((a,b) => a.num - b.num).map((m, index) => {
+                        ${distResults.mises.sort((a,b) => a.num - b.num).map(m => {
                             const horseName = participantsData.nom[numIndex[m.num]];
+                            const gainNet = (m.mise * m.cote) - distResults.totalMise;
                             return `
                             <tr>
                                 <td><strong>${m.num}</strong> ${escapeHTML(horseName)}</td>
                                 <td>${formatCurrency(m.mise)}</td>
-                                <td style="color: ${distResults.gainsNets[index] >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
-                                    ${formatCurrency(distResults.gainsNets[index])}
+                                <td style="color: ${gainNet >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
+                                    ${formatCurrency(gainNet)}
                                 </td>
                             </tr>
                         `}).join('')}
@@ -914,6 +922,7 @@ function renderDutchingApplication(state) {
             <div class="dutching-controls">
                 <select id="distribution-mode-select">
                      <option value="targetProfitSimple" ${mode === 'targetProfitSimple' ? 'selected' : ''}>Bénéfice Visé</option>
+                     <option value="targetProfitExact" ${mode === 'targetProfitExact' ? 'selected' : ''}>Bénéfice Exact</option>
                      <option value="totalBet" ${mode === 'totalBet' ? 'selected' : ''}>Mise Totale</option>
                 </select>
                 <input type="number" id="distribution-value-input" value="${value}" min="1">
@@ -922,4 +931,21 @@ function renderDutchingApplication(state) {
             <div class="distribution-results-container">${resultsHTML}</div>
         </div>
     `;
+}
+
+function renderFiltersFooter(isSimpleBet) {
+    if (!DOM.filtersActionFooter) return;
+
+    if (isSimpleBet) {
+        DOM.filtersActionFooter.innerHTML = '';
+        return;
+    }
+    
+    const content = `
+        <span id="filters-status-message"></span>
+        <button id="generer" style="background-color: var(--success-color);" type="button">
+            <i class="fas fa-rocket"></i> Lancer la Simplification
+        </button>
+    `;
+    DOM.filtersActionFooter.innerHTML = content;
 }
