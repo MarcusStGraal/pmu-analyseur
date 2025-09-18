@@ -685,38 +685,26 @@ class StateManager {
         let totalMise = 0;
         let error = null;
         if (mode === 'totalBet') {
-            const miseTotale = Math.floor(value);
+            const miseTotale = parseFloat(value);
             const inverseSum = selection.reduce((sum, h) => sum + (1 / h.cote), 0);
             if (inverseSum > 0) {
-                let betsWithFraction = selection.map(h => {
-                    const rawMise = (miseTotale * (1 / h.cote)) / inverseSum;
-                    return {
-                        num: h.num,
-                        cote: h.cote,
-                        mise: Math.floor(rawMise),
-                        fraction: rawMise - Math.floor(rawMise)
-                    };
+                mises = selection.map(h => {
+                    const mise = (miseTotale * (1 / h.cote)) / inverseSum;
+                    return { num: h.num, cote: h.cote, mise };
                 });
-                let currentTotal = betsWithFraction.reduce((sum, b) => sum + b.mise, 0);
-                let remainder = miseTotale - currentTotal;
-                betsWithFraction.sort((a, b) => b.fraction - a.fraction);
-                for (let i = 0; i < remainder; i++) {
-                    betsWithFraction[i].mise += 1;
-                }
-                mises = betsWithFraction.map(({num, cote, mise}) => ({num, cote, mise}));
                 totalMise = mises.reduce((sum, m) => sum + m.mise, 0);
             }
         } else { // 'targetProfitSimple' or 'targetProfitExact'
-            const beneficeVise = value;
+            const beneficeVise = parseFloat(value);
             if (mode === 'targetProfitSimple') {
                 mises = selection.map(h => {
-                    const mise = Math.ceil(beneficeVise / (h.cote - 1));
+                    const mise = Math.ceil((beneficeVise + 1) / (h.cote - 1));
                     return { num: h.num, cote: h.cote, mise };
                 });
             } else { // 'targetProfitExact'
                 const sumInverseCotes = selection.reduce((sum, h) => sum + (1 / h.cote), 0);
                 if (sumInverseCotes >= 1) {
-                    error = "Impossible de garantir un bénéfice avec ces cotes (somme des inverses >= 1).";
+                    error = "Impossible de garantir un bénéfice avec ces cotes.";
                 } else {
                     const gainCible = beneficeVise / (1 - sumInverseCotes);
                     mises = selection.map(h => {
@@ -740,7 +728,6 @@ class StateManager {
                 gainsNets: mises.map(m => (m.mise * m.cote) - totalMise)
             };
             this.setState({
-                status: { message: `Calcul de répartition terminé. Mise totale: ${results.totalMise}€` },
                 bettingDistribution: { ...bettingDistribution, results }
             });
         }
