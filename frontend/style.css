@@ -1192,3 +1192,22 @@ body.is-loading main {
 .distribution-results-table td:nth-child(1) {
     font-weight: 600;
 }
+.distribution-results-table {
+    table-layout: fixed; /* Force les colonnes à respecter les largeurs */
+    width: 100%;
+}
+
+.distribution-results-table th:first-child,
+.distribution-results-table td:first-child {
+    text-align: left;
+    width: 50%; /* Donne plus de place au nom */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Ajoute "..." si le texte est trop long */
+    white-space: nowrap;
+}
+
+.distribution-results-table th:not(:first-child),
+.distribution-results-table td:not(:first-child) {
+    text-align: right;
+    width: 25%; /* Espace égal pour les chiffres */
+}
