@@ -6,7 +6,10 @@ function escapeHTML(unsafe) {
     if (typeof unsafe !== 'string') return '';
     return unsafe.replace(/[&<>"']/g, match => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'})[match]);
 }
-
+function formatCurrency(value) {
+    // Supprime les .00 inutiles
+    return parseFloat(value.toFixed(2)).toString().replace('.', ',') + ' €';
+}
 const DOM = {
     status: document.getElementById('status'),
     reunionSelect: document.getElementById('reunionSelect'),
@@ -884,20 +887,22 @@ function renderDutchingApplication(state) {
         } else {
              resultsHTML = `
                 <div class="distribution-results-summary">
-                    <strong>Mise Totale : ${distResults.totalMise.toFixed(2)} €</strong>
+                    <strong>Mise Totale : ${formatCurrency(distResults.totalMise)}</strong>
                 </div>
                 <table class="distribution-results-table">
                     <thead><tr><th>N°</th><th>Mise</th><th>Gain Net</th></tr></thead>
                     <tbody>
-                        ${distResults.mises.sort((a,b) => a.num - b.num).map((m, index) => `
+                        ${distResults.mises.sort((a,b) => a.num - b.num).map((m, index) => {
+                            const horseName = participantsData.nom[numIndex[m.num]];
+                            return `
                             <tr>
-                                <td><strong>${m.num}</strong></td>
-                                <td>${m.mise.toFixed(2)} €</td>
+                                <td><strong>${m.num}</strong> ${escapeHTML(horseName)}</td>
+                                <td>${formatCurrency(m.mise)}</td>
                                 <td style="color: ${distResults.gainsNets[index] >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
-                                    ${distResults.gainsNets[index].toFixed(2)} €
+                                    ${formatCurrency(distResults.gainsNets[index])}
                                 </td>
                             </tr>
-                        `).join('')}
+                        `}).join('')}
                     </tbody>
                 </table>`;
         }
