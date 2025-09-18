@@ -828,7 +828,7 @@ function renderFiltersContent(state) {
 
 function renderDutchingOptimizer(state) {
     if (!DOM.distributionUI) return;
-    const { dutchingPrediction, participantsData } = state;
+    const { dutchingPrediction, participantsData, dutchingStrategy } = state;
     let resultHTML = '';
     let applicationHTML = '';
 
@@ -852,9 +852,9 @@ function renderDutchingOptimizer(state) {
         <div class="dutching-container">
             <div class="dutching-controls-compact">
                 <select id="dutching-strategie-select" ${!participantsData ? 'disabled' : ''}>
-                    <option value="2">2 Favoris</option>
-                    <option value="3" selected>3 Favoris</option>
-                    <option value="4">4 Favoris</option>
+                    <option value="2" ${dutchingStrategy === 2 ? 'selected' : ''}>2 Favoris</option>
+                    <option value="3" ${dutchingStrategy === 3 ? 'selected' : ''}>3 Favoris</option>
+                    <option value="4" ${dutchingStrategy === 4 ? 'selected' : ''}>4 Favoris</option>
                 </select>
                 <button id="run-dutching-analysis-btn" type="button" ${!participantsData ? 'disabled' : ''}>
                     Analyser
