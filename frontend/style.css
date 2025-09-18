@@ -1069,3 +1069,126 @@ body.is-loading main {
 .distribution-results-table td:nth-child(1) {
     font-weight: 700;
 }
+.dutching-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.dutching-controls-compact {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.dutching-controls-compact select,
+.dutching-controls-compact button {
+    height: 48px;
+    padding: 0 12px;
+    border-radius: var(--border-radius); /* Style harmonisé */
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg-color);
+    color: var(--text-color);
+    font-size: 1em;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.dutching-controls-compact button {
+    padding: 0 20px;
+    background-color: var(--success-color);
+    color: white;
+    font-weight: 600;
+}
+
+.dutching-result-card {
+    background-color: var(--card-bg-color);
+    border-radius: var(--border-radius);
+    padding: 12px;
+    border-left: 5px solid var(--dark-gray);
+    box-shadow: var(--shadow);
+}
+
+.dutching-decision {
+    font-size: 1.1em;
+    font-weight: 700;
+    text-align: center;
+}
+
+.dutching-applier-container {
+    margin-top: 5px;
+    padding: 15px;
+    border: 1px solid var(--border-color-light);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.horse-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.horse-chip {
+    background-color: var(--info-bg-color);
+    color: var(--text-color);
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.dutching-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.dutching-controls select {
+    flex-grow: 1;
+}
+
+.dutching-controls input[type="number"] {
+    flex-shrink: 0;
+    width: 80px;
+    text-align: center;
+    -moz-appearance: textfield;
+}
+
+.dutching-controls input::-webkit-outer-spin-button,
+.dutching-controls input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.dutching-controls button {
+    flex-shrink: 0;
+    width: 44px;
+    padding: 0;
+    background-color: var(--success-color);
+    color: white;
+}
+
+.dutching-controls select, .dutching-controls input, .dutching-controls button {
+    height: 44px;
+    padding: 0 10px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg-color);
+    color: var(--text-color);
+    font-size: 1em;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.distribution-results-table td {
+    white-space: nowrap;
+}
+
+.distribution-results-table td:nth-child(1) {
+    font-weight: 600;
+}
