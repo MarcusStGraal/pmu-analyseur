@@ -1211,3 +1211,37 @@ body.is-loading main {
     text-align: right;
     width: 25%; /* Espace égal pour les chiffres */
 }
+/* Styles finaux pour le tableau de répartition */
+.dutching-controls-compact select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 12px;
+    padding-right: 2.5rem;
+}
+
+body[data-theme="dark"] .dutching-controls-compact select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23f2f2f7' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+
+.distribution-results-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.distribution-results-table th:first-child,
+.distribution-results-table td:first-child {
+    text-align: left;
+    width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.distribution-results-table th:not(:first-child),
+.distribution-results-table td:not(:first-child) {
+    text-align: right;
+    width: 25%;
+}

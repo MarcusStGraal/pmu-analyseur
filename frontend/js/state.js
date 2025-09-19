@@ -21,10 +21,10 @@ const initialState = {
     selectedFilterSetId: null,
     criteriaProfiles: [],
     activeCriteriaProfileId: null,
-dutchingStrategy: 3, // <-- NOUVEAU : On mémorise la stratégie
-dutchingPrediction: null,
-bettingDistribution: {
-        mode: 'targetProfitSimple',
+    dutchingStrategy: 3,
+    dutchingPrediction: null,
+    bettingDistribution: {
+        mode: 'targetProfitExact', // <-- Mode par défaut
         value: 10,
         selectedHorses: [],
         results: null
@@ -71,7 +71,7 @@ class StateManager {
     async runDutchingPrediction(strategie) {
         this.setState({
             isLoading: true,
-            dutchingStrategy: strategie, // <-- On sauvegarde la stratégie
+            dutchingStrategy: strategie,
             status: { message: `Analyse de la stratégie ${strategie} favoris...` },
             dutchingPrediction: null
         });
@@ -710,6 +710,17 @@ class StateManager {
                     const mise = (h.cote > 1) ? Math.ceil(beneficeVise / (h.cote - 1)) : 0;
                     return { num: h.num, cote: h.cote, mise };
                 });
+            } else if (mode === 'targetProfitExact') {
+                const sumInverseCotes = selection.reduce((sum, h) => sum + (1 / h.cote), 0);
+                if (sumInverseCotes >= 1) {
+                    error = "Impossible de garantir un bénéfice avec ces cotes.";
+                } else {
+                    const gainCible = beneficeVise / (1 - sumInverseCotes);
+                    mises = selection.map(h => {
+                        const mise = Math.ceil(gainCible / h.cote);
+                        return { num: h.num, cote: h.cote, mise };
+                    });
+                }
             }
         }
         
@@ -724,8 +735,6 @@ class StateManager {
             const results = {
                 mises,
                 totalMise,
-                gainsBruts: mises.map(m => m.mise * m.cote),
-                gainsNets: mises.map(m => (m.mise * m.cote) - totalMise)
             };
             this.setState({
                 bettingDistribution: { ...bettingDistribution, results }
